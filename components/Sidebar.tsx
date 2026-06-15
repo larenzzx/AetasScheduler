@@ -1,0 +1,116 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { cn } from '@/lib/utils';
+import { 
+  LayoutDashboard, 
+  Calendar, 
+  Users, 
+  Clock, 
+  Settings,
+  ChevronRight,
+  X
+} from 'lucide-react';
+
+const navItems = [
+  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { name: 'Schedule', href: '/schedule', icon: Calendar },
+  { name: 'Employees', href: '/employees', icon: Users },
+  { name: 'Shift Types', href: '/shift-types', icon: Clock },
+  { name: 'Settings', href: '/settings', icon: Settings },
+];
+
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
+  const pathname = usePathname();
+
+  return (
+    <>
+      {/* Mobile Drawer Backdrop */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 md:hidden"
+          onClick={onClose}
+        />
+      )}
+
+      {/* Sidebar Panel */}
+      <aside 
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-[#0F172A] text-slate-200 border-r border-slate-800 transition-transform duration-300 ease-in-out md:translate-x-0",
+          isOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        {/* Brand Header */}
+        <div className="flex h-16 items-center justify-between px-6 border-b border-slate-800 bg-[#0B1329]">
+          <Link href="/" onClick={onClose} className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-600 font-bold text-white shadow-md shadow-emerald-900/30">
+              Æ
+            </div>
+            <div className="flex flex-col">
+              <span className="font-semibold text-sm tracking-wide text-white">AETAS GLOBAL</span>
+              <span className="text-[10px] text-slate-400 font-medium tracking-wider uppercase -mt-0.5">Scheduler</span>
+            </div>
+          </Link>
+
+          {/* Close button for mobile */}
+          {onClose && (
+            <button 
+              onClick={onClose}
+              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white md:hidden focus:outline-none"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          )}
+        </div>
+
+        {/* Navigation Items */}
+        <nav className="flex-1 space-y-1.5 px-4 py-6 overflow-y-auto">
+          {navItems.map((item) => {
+            const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
+            const Icon = item.icon;
+
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                onClick={onClose}
+                className={cn(
+                  "group flex items-center justify-between rounded-lg px-3.5 py-2.5 text-sm font-medium transition-all duration-200",
+                  isActive 
+                    ? "bg-slate-800 text-white shadow-sm" 
+                    : "text-slate-400 hover:bg-slate-800/40 hover:text-slate-200"
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <Icon className={cn(
+                    "h-4.5 w-4.5 transition-colors duration-200",
+                    isActive ? "text-emerald-500" : "text-slate-500 group-hover:text-slate-400"
+                  )} />
+                  <span>{item.name}</span>
+                </div>
+                {isActive && <ChevronRight className="h-3.5 w-3.5 text-emerald-500" />}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Footer / Profile */}
+        <div className="border-t border-slate-800 bg-[#0B1329] p-4 flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-700 text-slate-300 font-semibold text-xs border border-slate-600">
+            AD
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xs font-semibold text-white">Admin Dashboard</span>
+            <span className="text-[10px] text-slate-400">admin@aetasglobal.com</span>
+          </div>
+        </div>
+      </aside>
+    </>
+  );
+}
