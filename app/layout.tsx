@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
-import Sidebar from "@/components/Sidebar";
+import ResponsiveLayoutShell from "@/components/ResponsiveLayoutShell";
 import UnsavedChangesBanner from "@/components/UnsavedChangesBanner";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -24,17 +24,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={cn("font-sans", inter.variable)}>
       <body className="antialiased bg-slate-50 text-slate-900 min-h-screen">
-        <div className="relative min-h-screen flex">
-          {/* Persistent Sidebar */}
-          <Sidebar />
-
-          {/* Main Layout Area */}
-          <div className="flex-1 pl-64 flex flex-col min-h-screen">
-            <main className="flex-1 p-8 pb-36">
-              {children}
-            </main>
-          </div>
-        </div>
+        {/* Responsive Layout Shell with sidebar toggle */}
+        <ResponsiveLayoutShell>
+          {children}
+        </ResponsiveLayoutShell>
 
         {/* Global Floating Banner for Unsaved Schedule Edits */}
         <UnsavedChangesBanner />

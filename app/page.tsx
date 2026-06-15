@@ -93,7 +93,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Week Selector */}
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-slate-50 shadow-sm">
             <Button
               variant="ghost"
