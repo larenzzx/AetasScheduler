@@ -30,7 +30,7 @@ export default function RootLayout({
 
           {/* Main Layout Area */}
           <div className="flex-1 pl-64 flex flex-col min-h-screen">
-            <main className="flex-1 p-8">
+            <main className="flex-1 p-8 pb-36">
               {children}
             </main>
           </div>
