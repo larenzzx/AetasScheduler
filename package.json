@@ -14,6 +14,7 @@
   "dependencies": {
     "@base-ui/react": "^1.5.0",
     "@dnd-kit/core": "^6.3.1",
+    "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "@react-pdf/renderer": "^4.5.1",
     "class-variance-authority": "^0.7.1",
@@ -21,6 +22,7 @@
     "date-fns": "^4.4.0",
     "lucide-react": "^1.18.0",
     "next": "14.2.35",
+    "pg": "^8.21.0",
     "react": "^18",
     "react-dom": "^18",
     "shadcn": "^4.11.0",
@@ -30,6 +32,7 @@
   },
   "devDependencies": {
     "@types/node": "^20",
+    "@types/pg": "^8.20.0",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "eslint": "^8",
