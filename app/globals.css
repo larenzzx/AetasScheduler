@@ -15,80 +15,175 @@
     --font-heading: var(--font-sans);
     --font-sans: var(--font-sans);
   }
-  :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
+
+  /* Force dark mode brand color guidelines everywhere */
+  :root, .dark {
+    --background: #080C1A; /* Deep near-black background */
+    --foreground: #FFFFFF; /* Classic White */
+    
+    --card: #062E56; /* Prussian Blue (surface/cards) */
+    --card-foreground: #FFFFFF;
+    
+    --popover: #062E56; /* Prussian Blue */
+    --popover-foreground: #FFFFFF;
+    
+    --primary: #1023FD; /* Bluebonnet */
+    --primary-foreground: #FFFFFF;
+    
+    --secondary: #062E56; /* Prussian Blue */
+    --secondary-foreground: #11B4D4; /* Charged Blue */
+    
+    --muted: rgba(17, 180, 212, 0.1);
+    --muted-foreground: rgba(17, 180, 212, 0.6); /* Charged Blue at 60% opacity */
+    
+    --accent: #11B4D4; /* Charged Blue */
+    --accent-foreground: #FFFFFF;
+    
+    --destructive: #EF4444;
+    --destructive-foreground: #FFFFFF;
+    
+    --border: rgba(17, 180, 212, 0.2); /* Muted borders in Charged Blue */
+    --input: rgba(17, 180, 212, 0.2);
+    --ring: #00EEF5; /* Aqua (glow highlight) */
+    
     --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    
+    --sidebar: #080C1A;
+    --sidebar-foreground: #FFFFFF;
+    --sidebar-primary: #1023FD;
+    --sidebar-primary-foreground: #FFFFFF;
+    --sidebar-accent: #062E56;
+    --sidebar-accent-foreground: #11B4D4;
+    --sidebar-border: rgba(17, 180, 212, 0.2);
+    --sidebar-ring: #00EEF5;
   }
-  .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
-  }
+
   * {
     @apply border-border;
   }
+  
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
   }
-  html {
-    @apply font-sans;
-  }
+}
+
+/* OVERRIDE COMMONLY USED LIGHT UTILITIES TO COMPLY WITH BRAND PALETTE */
+.bg-white {
+  background-color: #062E56 !important; /* Prussian Blue background for cards */
+}
+
+.bg-slate-50 {
+  background-color: #080C1A !important; /* Background primary */
+}
+
+.bg-slate-100 {
+  background-color: rgba(17, 180, 212, 0.12) !important; /* Muted background surface */
+}
+
+.bg-slate-200 {
+  background-color: rgba(17, 180, 212, 0.2) !important;
+}
+
+.border-slate-200 {
+  border-color: rgba(17, 180, 212, 0.2) !important; /* Muted border in Charged Blue */
+}
+
+.border-slate-100 {
+  border-color: rgba(17, 180, 212, 0.1) !important;
+}
+
+.text-slate-900, .text-slate-800, .text-slate-700 {
+  color: #FFFFFF !important; /* Classic White */
+}
+
+.text-slate-500, .text-slate-600 {
+  color: rgba(17, 180, 212, 0.6) !important; /* Charged Blue at 60% opacity */
+}
+
+.text-slate-400 {
+  color: rgba(17, 180, 212, 0.5) !important;
+}
+
+/* Hover overlays */
+.hover\:bg-slate-50\/50:hover, .hover\:bg-slate-50:hover {
+  background-color: rgba(17, 180, 212, 0.08) !important;
+}
+
+.hover\:bg-slate-100:hover {
+  background-color: rgba(17, 180, 212, 0.15) !important;
+}
+
+/* Button variant custom colors */
+.bg-emerald-600 {
+  background-color: #1023FD !important; /* Bluebonnet accent */
+}
+.hover\:bg-emerald-700:hover {
+  background-color: #11B4D4 !important; /* Charged Blue hover */
+}
+.text-emerald-600, .text-emerald-500 {
+  color: #00EEF5 !important; /* Aqua highlight */
+}
+
+/* Day-Off styling in schedule grid (Day-Off shown in red text, no background fill) */
+.text-red-500, .text-red-600 {
+  color: #EF4444 !important;
+}
+
+/* Mixed shift badges / adjust shift */
+.text-amber-600, .text-amber-500 {
+  color: #11B4D4 !important;
+  border-color: rgba(17, 180, 212, 0.3) !important;
+}
+.bg-amber-50 {
+  background-color: rgba(17, 180, 212, 0.08) !important;
+}
+
+/* Emerald/Aqua utility overrides (e.g. shifts today logo card, active employee badges) */
+.bg-emerald-50 {
+  background-color: rgba(0, 238, 245, 0.08) !important; /* Muted Aqua */
+}
+.hover\:bg-emerald-50:hover {
+  background-color: rgba(0, 238, 245, 0.15) !important;
+}
+.border-emerald-200, .border-emerald-300 {
+  border-color: rgba(0, 238, 245, 0.2) !important;
+}
+.text-emerald-700 {
+  color: #00EEF5 !important; /* Aqua */
+}
+
+/* Sky/Charged Blue utility overrides (e.g. Alabang team badge) */
+.bg-sky-50 {
+  background-color: rgba(17, 180, 212, 0.08) !important; /* Muted Charged Blue */
+}
+.border-sky-200, .border-sky-200\/50 {
+  border-color: rgba(17, 180, 212, 0.2) !important;
+}
+.text-sky-700 {
+  color: #11B4D4 !important; /* Charged Blue */
+}
+
+/* Indigo/Bluebonnet utility overrides (e.g. Zamboanga team badge) */
+.bg-indigo-50 {
+  background-color: rgba(16, 35, 253, 0.08) !important; /* Muted Bluebonnet */
+}
+.border-indigo-200, .border-indigo-200\/50 {
+  border-color: rgba(16, 35, 253, 0.2) !important;
+}
+.text-indigo-700 {
+  color: #60a5fa !important; /* Light blue/indigo for high readability on dark background */
+}
+
+/* Red utility overrides (e.g. inactive status badges, delete buttons hover) */
+.bg-red-50 {
+  background-color: rgba(239, 68, 68, 0.08) !important; /* Muted Red */
+}
+.hover\:bg-red-50:hover {
+  background-color: rgba(239, 68, 68, 0.15) !important;
+}
+.border-red-200 {
+  border-color: rgba(239, 68, 68, 0.2) !important;
+}
+.text-red-700 {
+  color: #EF4444 !important;
 }

@@ -64,9 +64,9 @@ export default function SchedulePage() {
           </p>
         </div>
         
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-nowrap items-center gap-2 max-w-full overflow-x-auto sm:overflow-visible pb-1 sm:pb-0 scrollbar-none">
           {/* Week Navigator */}
-          <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-slate-50 shadow-sm">
+          <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-slate-50 shadow-sm shrink-0">
             <Button
               variant="ghost"
               size="icon"
@@ -75,7 +75,7 @@ export default function SchedulePage() {
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <div className="px-4 text-xs font-semibold text-slate-700 select-none min-w-[170px] text-center">
+            <div className="px-3 text-[11px] sm:text-xs font-semibold text-slate-700 select-none min-w-[130px] sm:min-w-[170px] text-center whitespace-nowrap">
               {dateRangeLabel}
             </div>
             <Button
@@ -92,13 +92,15 @@ export default function SchedulePage() {
             variant="outline"
             size="sm"
             onClick={handleGoToToday}
-            className="h-9 border-slate-200 text-slate-600 hover:bg-slate-50"
+            className="h-9 border-slate-200 text-slate-600 hover:bg-slate-50 shrink-0"
           >
             Today
           </Button>
 
           {/* Creation Dialog */}
-          <NewScheduleDialog />
+          <div className="shrink-0">
+            <NewScheduleDialog />
+          </div>
         </div>
       </div>
 

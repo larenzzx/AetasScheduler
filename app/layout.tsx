@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { DM_Sans } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import ResponsiveLayoutShell from "@/components/ResponsiveLayoutShell";
 import UnsavedChangesBanner from "@/components/UnsavedChangesBanner";
 import { Toaster } from "@/components/ui/sonner";
 
-const inter = Inter({
+const dmSans = DM_Sans({
   subsets: ["latin"],
   variable: "--font-sans",
 });
@@ -14,6 +14,11 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Aetas Global - Shift Scheduler",
   description: "Automated Shift Scheduling Management System for Aetas Global Innovation Inc.",
+  icons: {
+    icon: "/ATS_logo.PNG",
+    shortcut: "/ATS_logo.PNG",
+    apple: "/ATS_logo.PNG",
+  },
 };
 
 export default function RootLayout({
@@ -22,8 +27,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={cn("font-sans", inter.variable)}>
-      <body className="antialiased bg-slate-50 text-slate-900 min-h-screen">
+    <html lang="en" className={cn("font-sans dark", dmSans.variable)}>
+      <body className="antialiased bg-background text-foreground min-h-screen">
         {/* Responsive Layout Shell with sidebar toggle */}
         <ResponsiveLayoutShell>
           {children}

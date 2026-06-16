@@ -17,12 +17,12 @@ import { addDays, parseISO, format } from 'date-fns';
 // Helper to determine optimal text color based on background brightness
 function getContrastColor(hexColor: string): string {
   const hex = hexColor.replace('#', '');
-  if (hex.length !== 6) return 'text-slate-900';
+  if (hex.length !== 6) return 'text-[#080C1A]';
   const r = parseInt(hex.substring(0, 2), 16);
   const g = parseInt(hex.substring(2, 4), 16);
   const b = parseInt(hex.substring(4, 6), 16);
   const yiq = (r * 299 + g * 587 + b * 114) / 1000;
-  return yiq >= 150 ? 'text-slate-900 font-semibold' : 'text-white font-medium';
+  return yiq >= 150 ? 'text-[#080C1A] font-bold' : 'text-white font-medium';
 }
 
 const DAYS: DayOfWeek[] = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];

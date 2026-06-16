@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { 
@@ -42,19 +43,17 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       {/* Sidebar Panel */}
       <aside 
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-[#0F172A] text-slate-200 border-r border-slate-800 transition-transform duration-300 ease-in-out md:translate-x-0",
+          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-[#080C1A] text-slate-200 border-r border-[#11B4D4]/20 transition-transform duration-300 ease-in-out md:translate-x-0",
           isOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
         {/* Brand Header */}
-        <div className="flex h-16 items-center justify-between px-6 border-b border-slate-800 bg-[#0B1329]">
-          <Link href="/" onClick={onClose} className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-600 font-bold text-white shadow-md shadow-emerald-900/30">
-              Æ
-            </div>
-            <div className="flex flex-col">
-              <span className="font-semibold text-sm tracking-wide text-white">AETAS GLOBAL</span>
-              <span className="text-[10px] text-slate-400 font-medium tracking-wider uppercase -mt-0.5">Scheduler</span>
+        <div className="flex h-20 items-center justify-between px-6 border-b border-[#11B4D4]/20 bg-[#080C1A]">
+          <Link href="/" onClick={onClose} className="flex items-center gap-3">
+            <Image src="/ATS_logo.PNG" alt="ATS Logo" width={40} height={40} className="h-10 w-auto object-contain shrink-0" priority />
+            <div className="flex flex-col text-left">
+              <span className="font-bold text-sm tracking-wide text-white">AETAS GLOBAL</span>
+              <span className="text-[10px] text-[#11B4D4]/60 font-bold tracking-wider uppercase -mt-0.5">Scheduler</span>
             </div>
           </Link>
 
@@ -101,13 +100,13 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         </nav>
 
         {/* Footer / Profile */}
-        <div className="border-t border-slate-800 bg-[#0B1329] p-4 flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-700 text-slate-300 font-semibold text-xs border border-slate-600">
+        <div className="border-t border-[#11B4D4]/20 bg-[#080C1A] p-4 flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#062E56] text-white font-semibold text-xs border border-[#11B4D4]/30">
             AD
           </div>
           <div className="flex flex-col">
             <span className="text-xs font-semibold text-white">Admin Dashboard</span>
-            <span className="text-[10px] text-slate-400">admin@aetasglobal.com</span>
+            <span className="text-[10px] text-[#11B4D4]/60">admin@aetasglobal.com</span>
           </div>
         </div>
       </aside>
