@@ -27,6 +27,7 @@ import {
   Search, 
   Edit2, 
   Trash2, 
+  AlertTriangle,
   ArrowUp, 
   ArrowDown, 
   Loader2,
@@ -73,6 +74,11 @@ export default function ShiftTypesPage() {
   const [editStartTime, setEditStartTime] = useState('');
   const [editEndTime, setEditEndTime] = useState('');
   const [editColorHex, setEditColorHex] = useState('');
+
+  // Delete confirmation modal states
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [shiftToDelete, setShiftToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Load shift types
   const loadShifts = useCallback(async () => {
@@ -190,21 +196,29 @@ export default function ShiftTypesPage() {
   };
 
   // Handle Delete Shift Type
-  const handleDelete = async (id: string, name: string) => {
-    const confirmDelete = window.confirm(`Are you sure you want to delete the shift type "${name}"?`);
-    if (!confirmDelete) return;
+  const handleDeleteTrigger = (id: string, name: string) => {
+    setShiftToDelete({ id, name });
+    setDeleteOpen(true);
+  };
 
+  const handleDeleteConfirm = async () => {
+    if (!shiftToDelete) return;
+    setDeleteLoading(true);
     try {
-      const response = await deleteShiftType(id);
+      const response = await deleteShiftType(shiftToDelete.id);
       if (response.success) {
-        toast.success(`Shift type "${name}" deleted successfully.`);
+        toast.success(`Shift type "${shiftToDelete.name}" deleted successfully.`);
         loadShifts();
+        setDeleteOpen(false);
+        setShiftToDelete(null);
       } else {
-        toast.error(response.error || `Failed to delete shift type.`);
+        toast.error(response.error || 'Failed to delete shift type.');
       }
     } catch (error) {
-      console.error('Error in handleDelete:', error);
+      console.error('Error in handleDeleteConfirm:', error);
       toast.error('An unexpected error occurred.');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -554,7 +568,7 @@ export default function ShiftTypesPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDelete(shift.id, shift.name)}
+                            onClick={() => handleDeleteTrigger(shift.id, shift.name)}
                             className="h-8 px-2.5 text-red-500 hover:bg-red-50 hover:text-red-600"
                             title="Delete Shift Type"
                           >
@@ -728,6 +742,51 @@ export default function ShiftTypesPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent className="sm:max-w-[425px] bg-white border-slate-200">
+          <DialogHeader>
+            <DialogTitle className="text-slate-800 flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-red-500" />
+              Confirm Delete Shift Type
+            </DialogTitle>
+            <DialogDescription className="text-slate-500">
+              Are you sure you want to delete the shift type <strong className="text-slate-700 font-semibold">&quot;{shiftToDelete?.name}&quot;</strong>?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg bg-red-50 p-3 border border-red-200/30 text-xs text-red-600 font-medium leading-relaxed mt-2 flex items-start gap-1.5 animate-pulse">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-red-500 mt-0.5" />
+            <span>Warning: Deleting a shift type will remove it from the roster system. Any schedule entry matching this shift type in previous or current weeks will lose its time bounds. This cannot be undone.</span>
+          </div>
+          <DialogFooter className="mt-4 flex gap-2 sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteOpen(false);
+                setShiftToDelete(null);
+              }}
+              disabled={deleteLoading}
+              className="border-slate-200 text-slate-600 hover:bg-slate-50"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleDeleteConfirm}
+              disabled={deleteLoading}
+              className="bg-red-600 hover:bg-red-700 text-white border-none shadow-md shadow-red-600/10 font-semibold"
+            >
+              {deleteLoading ? (
+                <>
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete'
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

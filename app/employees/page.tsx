@@ -67,6 +67,11 @@ export default function EmployeesPage() {
   const [editTeam, setEditTeam] = useState<Team>(Team.ALABANG);
   const [editIsActive, setEditIsActive] = useState(true);
 
+  // Deactivate confirmation modal states
+  const [deactivateOpen, setDeactivateOpen] = useState(false);
+  const [employeeToDeactivate, setEmployeeToDeactivate] = useState<Employee | null>(null);
+  const [deactivateLoading, setDeactivateLoading] = useState(false);
+
   // Load initial data
   const loadData = useCallback(async () => {
     try {
@@ -180,20 +185,43 @@ export default function EmployeesPage() {
 
   // Toggle active status inline (Soft Delete)
   const handleStatusToggle = async (employee: Employee) => {
-    const nextStatus = !employee.isActive;
-    const actionText = nextStatus ? 'activate' : 'deactivate';
+    if (employee.isActive) {
+      setEmployeeToDeactivate(employee);
+      setDeactivateOpen(true);
+    } else {
+      try {
+        const response = await toggleEmployeeStatus(employee.id, true);
+        if (response.success) {
+          toast.success(`Successfully activated ${employee.name}`);
+          loadData();
+        } else {
+          toast.error(response.error || 'Failed to activate employee.');
+        }
+      } catch (error) {
+        console.error('Error activating status:', error);
+        toast.error('An unexpected error occurred.');
+      }
+    }
+  };
 
+  const handleDeactivateConfirm = async () => {
+    if (!employeeToDeactivate) return;
+    setDeactivateLoading(true);
     try {
-      const response = await toggleEmployeeStatus(employee.id, nextStatus);
+      const response = await toggleEmployeeStatus(employeeToDeactivate.id, false);
       if (response.success) {
-        toast.success(`Successfully ${nextStatus ? 'activated' : 'deactivated'} ${employee.name}`);
+        toast.success(`Successfully deactivated ${employeeToDeactivate.name}`);
         loadData();
+        setDeactivateOpen(false);
+        setEmployeeToDeactivate(null);
       } else {
-        toast.error(response.error || `Failed to ${actionText} employee.`);
+        toast.error(response.error || 'Failed to deactivate employee.');
       }
     } catch (error) {
-      console.error('Error toggling status:', error);
+      console.error('Error deactivating status:', error);
       toast.error('An unexpected error occurred.');
+    } finally {
+      setDeactivateLoading(false);
     }
   };
 
@@ -716,6 +744,50 @@ export default function EmployeesPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deactivateOpen} onOpenChange={setDeactivateOpen}>
+        <DialogContent className="sm:max-w-[425px] bg-white border-slate-200">
+          <DialogHeader>
+            <DialogTitle className="text-slate-800 flex items-center gap-2">
+              <UserX className="h-5 w-5 text-red-500" />
+              Confirm Deactivation
+            </DialogTitle>
+            <DialogDescription className="text-slate-500">
+              Are you sure you want to deactivate <strong className="text-slate-700 font-semibold">{employeeToDeactivate?.name}</strong>? 
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg bg-slate-50 p-3 border border-slate-100 text-xs text-slate-600 font-medium leading-relaxed mt-2">
+            Deactivating this employee hides them from all active schedules and rosters. Their past schedule logs and history are preserved for payroll and records.
+          </div>
+          <DialogFooter className="mt-4 flex gap-2 sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeactivateOpen(false);
+                setEmployeeToDeactivate(null);
+              }}
+              disabled={deactivateLoading}
+              className="border-slate-200 text-slate-600 hover:bg-slate-50"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleDeactivateConfirm}
+              disabled={deactivateLoading}
+              className="bg-red-600 hover:bg-red-700 text-white border-none shadow-md shadow-red-600/10 font-semibold"
+            >
+              {deactivateLoading ? (
+                <>
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                  Deactivating...
+                </>
+              ) : (
+                'Deactivate'
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

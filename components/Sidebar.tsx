@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
@@ -14,6 +15,15 @@ import {
   X,
   LogOut
 } from 'lucide-react';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogFooter, 
+  DialogHeader, 
+  DialogTitle 
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { logout } from '@/app/actions/auth';
 
 const navItems = [
@@ -31,6 +41,7 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
+  const [logoutOpen, setLogoutOpen] = useState(false);
 
   return (
     <>
@@ -113,7 +124,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
             </div>
           </div>
           <button 
-            onClick={() => logout()}
+            onClick={() => setLogoutOpen(true)}
             className="p-1.5 rounded-lg text-slate-400 hover:bg-[#062E56] hover:text-red-400 transition-colors"
             title="Log Out"
           >
@@ -121,6 +132,35 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
           </button>
         </div>
       </aside>
+
+      <Dialog open={logoutOpen} onOpenChange={setLogoutOpen}>
+        <DialogContent className="sm:max-w-[425px] bg-white border-slate-200">
+          <DialogHeader>
+            <DialogTitle className="text-slate-800 flex items-center gap-2">
+              <LogOut className="h-5 w-5 text-red-500" />
+              Confirm Log Out
+            </DialogTitle>
+            <DialogDescription className="text-slate-500">
+              Are you sure you want to log out of your session? You will need to log back in to manage schedules.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 flex gap-2 sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setLogoutOpen(false)}
+              className="border-slate-200 text-slate-600 hover:bg-slate-50"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => logout()}
+              className="bg-red-600 hover:bg-red-700 text-white border-none shadow-md shadow-red-600/10"
+            >
+              Log Out
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
