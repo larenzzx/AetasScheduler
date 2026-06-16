@@ -1,7 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import { Team } from '@prisma/client';
+import { Team } from '@/types';
 import { revalidatePath } from 'next/cache';
 
 export async function getEmployees() {
