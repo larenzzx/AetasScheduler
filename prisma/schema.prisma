@@ -25,25 +25,24 @@ enum DayOfWeek {
 }
 
 model Employee {
-  id          String          @id @default(cuid())
-  name        String
-  employeeId  String          @unique
-  team        Team
-  isActive    Boolean         @default(true)
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  schedules   ScheduleEntry[]
+  id              String          @id @default(cuid())
+  name            String
+  employeeId      String          @unique
+  team            Team
+  isActive        Boolean         @default(true)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  schedules       ScheduleEntry[]
 }
 
 model ShiftType {
-  id         String          @id @default(cuid())
-  name       String          @unique
-  startTime  String?         // e.g. "08:00 AM" or "6:00 AM", nullable for LEAVE / DAY-OFF / ADJUST
-  endTime    String?         // e.g. "05:00 PM" or "3:00 PM", nullable
-  colorHex   String          // e.g. "#808080" for gray
-  isRotating Boolean         @default(false)
-  sortOrder  Int             @default(0)
-  schedules  ScheduleEntry[]
+  id            String          @id @default(cuid())
+  name          String          @unique
+  startTime     String?         // e.g. "08:00 AM" or "6:00 AM", nullable for LEAVE / DAY-OFF / ADJUST
+  endTime       String?         // e.g. "05:00 PM" or "3:00 PM", nullable
+  colorHex      String          // e.g. "#808080" for gray
+  sortOrder     Int             @default(0)
+  schedules     ScheduleEntry[]
 }
 
 model ScheduleWeek {

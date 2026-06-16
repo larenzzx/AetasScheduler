@@ -88,7 +88,7 @@ export async function getScheduleData(
 export async function createScheduleWeek(
   weekStartDateStr: string,
   team: Team,
-  option: 'blank' | 'copy' | 'rotate'
+  option: 'blank' | 'copy'
 ): Promise<ScheduleDataResponse> {
   const weekStart = parseISO(weekStartDateStr);
   const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
@@ -119,15 +119,11 @@ export async function createScheduleWeek(
     orderBy: { name: 'asc' },
   });
 
-  // 3. Fetch shift types
-  const shiftTypes = await prisma.shiftType.findMany({
-    orderBy: { sortOrder: 'asc' },
-  });
 
   const days: DayOfWeek[] = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
   // 4. Handle creation strategy
-  if (option === 'copy' || option === 'rotate') {
+  if (option === 'copy') {
     // Find previous week's start date
     const prevWeekStart = addDays(weekStart, -7);
     const prevWeek = await prisma.scheduleWeek.findUnique({
@@ -145,32 +141,13 @@ export async function createScheduleWeek(
     if (prevWeek && prevWeek.entries.length > 0) {
       const entriesToCreate = [];
 
-      // If rotating, we need to map out rotation logic
-      // DAY SHIFT (Green) -> MID SHIFT (Orange) -> ADJUST SHIFT (Red) -> NIGHT SHIFT (Purple) -> DAY SHIFT
-      const rotatingShiftsSequence = ['DAY SHIFT', 'MID SHIFT', 'ADJUST SHIFT', 'NIGHT SHIFT'];
-
       for (const employee of employees) {
         for (const day of days) {
           const prevEntry = prevWeek.entries.find(
             (e) => e.employeeId === employee.id && e.dayOfWeek === day
           );
 
-          let newShiftTypeId = prevEntry ? prevEntry.shiftTypeId : null;
-
-          if (option === 'rotate' && prevEntry && prevEntry.shiftTypeId) {
-            const currentShift = shiftTypes.find((s) => s.id === prevEntry.shiftTypeId);
-            // Rotate only if the shift is marked as isRotating in ShiftType
-            if (currentShift && currentShift.isRotating) {
-              const seqIdx = rotatingShiftsSequence.indexOf(currentShift.name);
-              if (seqIdx !== -1) {
-                const nextSeqName = rotatingShiftsSequence[(seqIdx + 1) % rotatingShiftsSequence.length];
-                const nextShift = shiftTypes.find((s) => s.name === nextSeqName);
-                if (nextShift) {
-                  newShiftTypeId = nextShift.id;
-                }
-              }
-            }
-          }
+          const newShiftTypeId = prevEntry ? prevEntry.shiftTypeId : null;
 
           entriesToCreate.push({
             employeeId: employee.id,
@@ -182,7 +159,6 @@ export async function createScheduleWeek(
       }
 
       // Bulk create new entries
-      // Prisma does not support createMany for upsert in a single call easily, but since this is a new week, we can delete any existing entries (if any) and do createMany.
       await prisma.scheduleEntry.deleteMany({
         where: { scheduleWeekId: week.id },
       });
