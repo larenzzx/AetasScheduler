@@ -4,8 +4,10 @@ import { useScheduleStore } from '@/store/useScheduleStore';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { AlertTriangle, Save, RotateCcw, Loader2 } from 'lucide-react';
+import { usePathname } from 'next/navigation';
 
 export default function UnsavedChangesBanner() {
+  const pathname = usePathname();
   const { 
     unsavedChanges, 
     discardChanges, 
@@ -15,6 +17,7 @@ export default function UnsavedChangesBanner() {
 
   const changeCount = Object.keys(unsavedChanges).length;
 
+  if (pathname === '/login') return null;
   if (changeCount === 0) return null;
 
   const handleSave = async () => {

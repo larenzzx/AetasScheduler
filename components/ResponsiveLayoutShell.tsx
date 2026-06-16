@@ -5,6 +5,7 @@ import Sidebar from '@/components/Sidebar';
 import { Menu } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { usePathname } from 'next/navigation';
 
 interface ResponsiveLayoutShellProps {
   children: React.ReactNode;
@@ -12,6 +13,11 @@ interface ResponsiveLayoutShellProps {
 
 export default function ResponsiveLayoutShell({ children }: ResponsiveLayoutShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const pathname = usePathname();
+
+  if (pathname === '/login') {
+    return <>{children}</>;
+  }
 
   return (
     <div className="relative min-h-screen flex flex-col md:flex-row bg-background text-foreground">

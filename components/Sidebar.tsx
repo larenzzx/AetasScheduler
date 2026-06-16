@@ -11,8 +11,10 @@ import {
   Clock, 
   Settings,
   ChevronRight,
-  X
+  X,
+  LogOut
 } from 'lucide-react';
+import { logout } from '@/app/actions/auth';
 
 const navItems = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -100,14 +102,23 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         </nav>
 
         {/* Footer / Profile */}
-        <div className="border-t border-[#11B4D4]/20 bg-[#080C1A] p-4 flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#062E56] text-white font-semibold text-xs border border-[#11B4D4]/30">
-            AD
+        <div className="border-t border-[#11B4D4]/20 bg-[#080C1A] p-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#062E56] text-white font-semibold text-xs border border-[#11B4D4]/30">
+              AD
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xs font-semibold text-white">Admin Dashboard</span>
+              <span className="text-[10px] text-[#11B4D4]/60">admin@aetasglobal.com</span>
+            </div>
           </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-semibold text-white">Admin Dashboard</span>
-            <span className="text-[10px] text-[#11B4D4]/60">admin@aetasglobal.com</span>
-          </div>
+          <button 
+            onClick={() => logout()}
+            className="p-1.5 rounded-lg text-slate-400 hover:bg-[#062E56] hover:text-red-400 transition-colors"
+            title="Log Out"
+          >
+            <LogOut className="h-4.5 w-4.5" />
+          </button>
         </div>
       </aside>
     </>
