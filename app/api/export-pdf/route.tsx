@@ -474,8 +474,9 @@ export async function GET(request: NextRequest) {
       return new Response('Missing weekDate parameter', { status: 400 });
     }
 
-    const weekStart = parseISO(weekDateStr);
-    const weekEnd = addDays(weekStart, 6);
+    const weekStart = new Date(`${weekDateStr}T00:00:00.000Z`);
+    const weekEnd = new Date(`${weekDateStr}T23:59:59.999Z`);
+    weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
     const dateRangeLabel = formatWeekRange(weekStart, weekEnd);
     const monthLabel = format(weekStart, 'MMMM yyyy').toUpperCase();
     const logoPath = path.join(process.cwd(), 'public', 'ATS_logo.PNG');

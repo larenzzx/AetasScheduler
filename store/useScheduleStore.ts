@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Team, DayOfWeek, ShiftType, ScheduleWeek, ScheduleGridRow } from '@/types';
+import { Team, DayOfWeek, ShiftType, ScheduleWeek, ScheduleGridRow, Employee } from '@/types';
 import { getScheduleData, saveScheduleEntries, deleteScheduleWeek } from '@/app/actions/schedule';
 import { startOfWeek, format } from 'date-fns';
 
@@ -12,6 +12,8 @@ interface ScheduleState {
   zamboangaWeek: ScheduleWeek | null;
   alabangRows: ScheduleGridRow[];
   zamboangaRows: ScheduleGridRow[];
+  alabangEmployees: Employee[];
+  zamboangaEmployees: Employee[];
   shiftTypes: ShiftType[];
   loading: boolean;
   
@@ -53,6 +55,8 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
   zamboangaWeek: null,
   alabangRows: [],
   zamboangaRows: [],
+  alabangEmployees: [],
+  zamboangaEmployees: [],
   shiftTypes: [],
   loading: false,
   unsavedChanges: {},
@@ -78,8 +82,10 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
       set({
         alabangWeek: alabangData.week,
         alabangRows: alabangData.rows,
+        alabangEmployees: alabangData.employees,
         zamboangaWeek: zamboangaData.week,
         zamboangaRows: zamboangaData.rows,
+        zamboangaEmployees: zamboangaData.employees,
         shiftTypes: alabangData.shiftTypes, // shiftTypes are identical across teams
         unsavedChanges: {},
       });

@@ -16,7 +16,6 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { RotateCcw, Loader2, AlertTriangle } from 'lucide-react';
-import { parseISO, addDays } from 'date-fns';
 import { formatWeekRange } from '@/lib/utils';
 
 export default function ResetScheduleDialog() {
@@ -57,8 +56,9 @@ export default function ResetScheduleDialog() {
   }
 
   // Parse week dates for user confirmation message
-  const weekStart = parseISO(currentWeekDate);
-  const weekEnd = addDays(weekStart, 6);
+  const weekStart = new Date(`${currentWeekDate}T00:00:00.000Z`);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
   const dateRangeLabel = formatWeekRange(weekStart, weekEnd);
 
   const handleReset = async () => {

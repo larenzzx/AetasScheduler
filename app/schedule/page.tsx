@@ -8,7 +8,7 @@ import ResetScheduleDialog from '@/components/ResetScheduleDialog';
 import { Button } from '@/components/ui/button';
 import { cn, formatWeekRange } from '@/lib/utils';
 import { ChevronLeft, ChevronRight, Calendar, Info, FileDown } from 'lucide-react';
-import { addDays, format, parseISO } from 'date-fns';
+
 
 export default function SchedulePage() {
   const {
@@ -28,27 +28,32 @@ export default function SchedulePage() {
   }, [fetchSchedule]);
 
   // Date parsing for UI labels
-  const weekStart = parseISO(currentWeekDate);
-  const weekEnd = addDays(weekStart, 6);
+  const weekStart = new Date(`${currentWeekDate}T00:00:00.000Z`);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
   const dateRangeLabel = formatWeekRange(weekStart, weekEnd);
 
   const handlePrevWeek = () => {
-    const prev = addDays(weekStart, -7);
-    setWeekDate(format(prev, 'yyyy-MM-dd'));
+    const prev = new Date(weekStart);
+    prev.setUTCDate(prev.getUTCDate() - 7);
+    setWeekDate(prev.toISOString().split('T')[0]);
   };
 
   const handleNextWeek = () => {
-    const next = addDays(weekStart, 7);
-    setWeekDate(format(next, 'yyyy-MM-dd'));
+    const next = new Date(weekStart);
+    next.setUTCDate(next.getUTCDate() + 7);
+    setWeekDate(next.toISOString().split('T')[0]);
   };
 
   const handleGoToToday = () => {
     const today = new Date();
-    // Monday of current week
-    const currentDay = today.getDay();
-    const distanceToMonday = currentDay === 0 ? -6 : 1 - currentDay;
-    const monday = addDays(today, distanceToMonday);
-    setWeekDate(format(monday, 'yyyy-MM-dd'));
+    const day = today.getDay();
+    const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(today.setDate(diff));
+    const yyyy = monday.getFullYear();
+    const mm = String(monday.getMonth() + 1).padStart(2, '0');
+    const dd = String(monday.getDate()).padStart(2, '0');
+    setWeekDate(`${yyyy}-${mm}-${dd}`);
   };
 
   const handleExportPDF = () => {

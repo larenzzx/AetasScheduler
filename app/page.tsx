@@ -14,7 +14,6 @@ import {
   ChevronRight, 
   LayoutDashboard 
 } from 'lucide-react';
-import { addDays, format, parseISO } from 'date-fns';
 import { DayOfWeek } from '@/types';
 
 export default function DashboardPage() {
@@ -24,6 +23,8 @@ export default function DashboardPage() {
     zamboangaWeek,
     alabangRows,
     zamboangaRows,
+    alabangEmployees,
+    zamboangaEmployees,
     shiftTypes,
     setWeekDate,
     fetchSchedule,
@@ -34,23 +35,26 @@ export default function DashboardPage() {
   }, [fetchSchedule]);
 
   // Date navigation
-  const weekStart = parseISO(currentWeekDate);
-  const weekEnd = addDays(weekStart, 6);
+  const weekStart = new Date(`${currentWeekDate}T00:00:00.000Z`);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
   const dateRangeLabel = formatWeekRange(weekStart, weekEnd);
 
   const handlePrevWeek = () => {
-    const prev = addDays(weekStart, -7);
-    setWeekDate(format(prev, 'yyyy-MM-dd'));
+    const prev = new Date(weekStart);
+    prev.setUTCDate(prev.getUTCDate() - 7);
+    setWeekDate(prev.toISOString().split('T')[0]);
   };
 
   const handleNextWeek = () => {
-    const next = addDays(weekStart, 7);
-    setWeekDate(format(next, 'yyyy-MM-dd'));
+    const next = new Date(weekStart);
+    next.setUTCDate(next.getUTCDate() + 7);
+    setWeekDate(next.toISOString().split('T')[0]);
   };
 
   // Stats calculation
-  const totalEmployeesAlabang = alabangRows.length;
-  const totalEmployeesZamboanga = zamboangaRows.length;
+  const totalEmployeesAlabang = alabangEmployees.length;
+  const totalEmployeesZamboanga = zamboangaEmployees.length;
   const totalEmployees = totalEmployeesAlabang + totalEmployeesZamboanga;
 
   // Find today's day of week

@@ -2,14 +2,13 @@
 
 import { prisma } from '@/lib/prisma';
 import { DayOfWeek, Team, ScheduleDataResponse, ScheduleGridRow } from '@/types';
-import { endOfWeek, addDays, parseISO } from 'date-fns';
 import { formatWeekRange } from '@/lib/utils';
 
 export async function getScheduleData(
   weekStartDateStr: string,
   team: Team
 ): Promise<ScheduleDataResponse> {
-  const weekStart = parseISO(weekStartDateStr);
+  const weekStart = new Date(`${weekStartDateStr}T00:00:00.000Z`);
 
   // 1. Fetch the schedule week details if it exists
   const week = await prisma.scheduleWeek.findUnique({
@@ -88,8 +87,9 @@ export async function createScheduleWeek(
   team: Team,
   option: 'blank' | 'copy'
 ): Promise<ScheduleDataResponse> {
-  const weekStart = parseISO(weekStartDateStr);
-  const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+  const weekStart = new Date(`${weekStartDateStr}T00:00:00.000Z`);
+  const weekEnd = new Date(`${weekStartDateStr}T23:59:59.999Z`);
+  weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
   const label = formatWeekRange(weekStart, weekEnd);
 
   // 1. Create or retrieve the ScheduleWeek
@@ -123,7 +123,8 @@ export async function createScheduleWeek(
   // 4. Handle creation strategy
   if (option === 'copy') {
     // Find previous week's start date
-    const prevWeekStart = addDays(weekStart, -7);
+    const prevWeekStart = new Date(weekStart);
+    prevWeekStart.setUTCDate(prevWeekStart.getUTCDate() - 7);
     const prevWeek = await prisma.scheduleWeek.findUnique({
       where: {
         weekStartDate_team: {
@@ -204,7 +205,7 @@ export async function deleteScheduleWeek(
   weekStartDateStr: string,
   team: Team
 ): Promise<void> {
-  const weekStart = parseISO(weekStartDateStr);
+  const weekStart = new Date(`${weekStartDateStr}T00:00:00.000Z`);
   try {
     await prisma.scheduleWeek.delete({
       where: {

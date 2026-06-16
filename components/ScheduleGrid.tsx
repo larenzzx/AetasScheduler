@@ -12,7 +12,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Info } from 'lucide-react';
-import { addDays, parseISO, format } from 'date-fns';
 
 // Helper to determine optimal text color based on background brightness
 function getContrastColor(hexColor: string): string {
@@ -184,8 +183,10 @@ export default function ScheduleGrid({ team }: ScheduleGridProps) {
                 Employee Details
               </th>
               {DAYS.map((day, idx) => {
-                const dayDate = addDays(parseISO(currentWeekDate), idx);
-                const dayNumberStr = format(dayDate, 'd');
+                const baseDate = new Date(`${currentWeekDate}T00:00:00.000Z`);
+                const dayDate = new Date(baseDate);
+                dayDate.setUTCDate(dayDate.getUTCDate() + idx);
+                const dayNumberStr = String(dayDate.getUTCDate());
                 return (
                   <th key={day} className="px-4 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center border-r border-slate-200 last:border-r-0">
                     <div className="flex flex-col items-center">
