@@ -18,6 +18,9 @@ interface ScheduleState {
   // Unsaved changes tracking: key is "employeeId_dayOfWeek" -> value is shiftTypeId | null
   unsavedChanges: Record<string, string | null>;
   
+  companyName: string;
+  setCompanyName: (name: string) => void;
+  
   // Actions
   setWeekDate: (dateStr: string) => void;
   setActiveTab: (tab: 'ALL' | 'ALABANG' | 'ZAMBOANGA') => void;
@@ -39,6 +42,13 @@ const getInitialMonday = () => {
 export const useScheduleStore = create<ScheduleState>((set, get) => ({
   currentWeekDate: getInitialMonday(),
   activeTab: 'ALABANG',
+  companyName: typeof window !== 'undefined' ? localStorage.getItem('companyName') || 'AETAS GLOBAL INNOVATION INC' : 'AETAS GLOBAL INNOVATION INC',
+  setCompanyName: (name) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('companyName', name);
+    }
+    set({ companyName: name });
+  },
   alabangWeek: null,
   zamboangaWeek: null,
   alabangRows: [],

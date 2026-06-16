@@ -292,6 +292,7 @@ interface PDFDocumentProps {
   shiftTypes: ShiftType[];
   weekHeaders: PDFHeader[];
   logoPath: string;
+  companyName: string;
 }
 
 const SchedulePDFDocument = ({
@@ -302,6 +303,7 @@ const SchedulePDFDocument = ({
   shiftTypes,
   weekHeaders,
   logoPath,
+  companyName,
 }: PDFDocumentProps) => {
   const renderTable = (teamName: string, rows: PDFRow[]) => {
     return (
@@ -423,7 +425,7 @@ const SchedulePDFDocument = ({
             </View>
             <View style={styles.metaRowLast}>
               <Text style={styles.metaLabel}>Company Name: </Text>
-              <Text style={styles.metaValue}>AETAS GLOBAL INNOVATION INC</Text>
+              <Text style={styles.metaValue}>{companyName}</Text>
             </View>
           </View>
         </View>
@@ -477,6 +479,7 @@ export async function GET(request: NextRequest) {
     const dateRangeLabel = formatWeekRange(weekStart, weekEnd);
     const monthLabel = format(weekStart, 'MMMM yyyy').toUpperCase();
     const logoPath = path.join(process.cwd(), 'public', 'ATS_logo.PNG');
+    const companyName = searchParams.get('companyName') || 'AETAS GLOBAL INNOVATION INC';
 
     // 1. Fetch shift types
     const shiftTypes = await prisma.shiftType.findMany({
@@ -562,6 +565,7 @@ export async function GET(request: NextRequest) {
         shiftTypes={shiftTypes}
         weekHeaders={weekHeaders}
         logoPath={logoPath}
+        companyName={companyName}
       />
     );
 

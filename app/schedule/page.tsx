@@ -16,6 +16,7 @@ export default function SchedulePage() {
     activeTab,
     alabangWeek,
     zamboangaWeek,
+    companyName,
     setWeekDate,
     setActiveTab,
     fetchSchedule,
@@ -51,7 +52,7 @@ export default function SchedulePage() {
   };
 
   const handleExportPDF = () => {
-    window.open(`/api/export-pdf?weekDate=${currentWeekDate}`, '_blank');
+    window.open(`/api/export-pdf?weekDate=${currentWeekDate}&companyName=${encodeURIComponent(companyName)}`, '_blank');
   };
 
   return (
