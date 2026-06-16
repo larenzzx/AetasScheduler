@@ -7,7 +7,7 @@ import NewScheduleDialog from '@/components/NewScheduleDialog';
 import ResetScheduleDialog from '@/components/ResetScheduleDialog';
 import { Button } from '@/components/ui/button';
 import { cn, formatWeekRange } from '@/lib/utils';
-import { ChevronLeft, ChevronRight, Calendar, Info } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, Info, FileDown } from 'lucide-react';
 import { addDays, format, parseISO } from 'date-fns';
 
 export default function SchedulePage() {
@@ -48,6 +48,10 @@ export default function SchedulePage() {
     const distanceToMonday = currentDay === 0 ? -6 : 1 - currentDay;
     const monday = addDays(today, distanceToMonday);
     setWeekDate(format(monday, 'yyyy-MM-dd'));
+  };
+
+  const handleExportPDF = () => {
+    window.open(`/api/export-pdf?weekDate=${currentWeekDate}`, '_blank');
   };
 
   return (
@@ -95,6 +99,16 @@ export default function SchedulePage() {
             className="h-9 border-slate-200 text-slate-600 hover:bg-slate-50 shrink-0"
           >
             Today
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportPDF}
+            className="h-9 border-[#11B4D4]/30 text-[#11B4D4] hover:bg-[#11B4D4]/10 hover:text-white shrink-0 gap-1.5"
+          >
+            <FileDown className="h-4 w-4" />
+            Export PDF
           </Button>
 
           {/* Creation Dialog */}
