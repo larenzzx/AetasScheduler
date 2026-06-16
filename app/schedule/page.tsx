@@ -5,6 +5,7 @@ import { useScheduleStore } from '@/store/useScheduleStore';
 import ScheduleGrid from '@/components/ScheduleGrid';
 import NewScheduleDialog from '@/components/NewScheduleDialog';
 import ResetScheduleDialog from '@/components/ResetScheduleDialog';
+import ShiftFilterPanel from '@/components/ShiftFilterPanel';
 import { Button } from '@/components/ui/button';
 import { cn, formatWeekRange } from '@/lib/utils';
 import { ChevronLeft, ChevronRight, Calendar, Info, FileDown } from 'lucide-react';
@@ -152,6 +153,8 @@ export default function SchedulePage() {
           <ResetScheduleDialog />
         </div>
       </div>
+
+      <ShiftFilterPanel />
 
       {/* Grids Display area */}
       <div className="space-y-6">

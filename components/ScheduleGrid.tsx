@@ -47,12 +47,28 @@ export default function ScheduleGrid({ team }: ScheduleGridProps) {
     shiftTypes, 
     unsavedChanges, 
     updateCell, 
-    loading 
+    loading,
+    activeShiftFilter
   } = useScheduleStore();
 
-  const rows = team === 'ALABANG' ? alabangRows : zamboangaRows;
+  const baseRows = team === 'ALABANG' ? alabangRows : zamboangaRows;
 
-  if (loading && rows.length === 0) {
+  const rows = activeShiftFilter
+    ? baseRows.filter((row) => {
+        return Object.entries(row.entries).some(([dayOfWeek, entry]) => {
+          const key = `${row.employee.id}_${dayOfWeek}`;
+          const shiftTypeId = key in unsavedChanges ? unsavedChanges[key] : entry.shiftTypeId;
+          if (activeShiftFilter === 'DAY-OFF') {
+            return shiftTypeId === null;
+          } else {
+            const shift = shiftTypes.find((s) => s.id === shiftTypeId);
+            return shift?.name === activeShiftFilter;
+          }
+        });
+      })
+    : baseRows;
+
+  if (loading && baseRows.length === 0) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-12 w-full rounded-lg bg-slate-200" />
@@ -63,7 +79,7 @@ export default function ScheduleGrid({ team }: ScheduleGridProps) {
     );
   }
 
-  if (rows.length === 0) {
+  if (baseRows.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center p-12 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-white shadow-sm">
         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-400 mb-4">
@@ -72,6 +88,20 @@ export default function ScheduleGrid({ team }: ScheduleGridProps) {
         <h3 className="text-lg font-semibold text-slate-800">No Schedule Formed Yet</h3>
         <p className="text-sm text-slate-500 max-w-sm mt-1">
           This team does not have a schedule created for this week. Use the &quot;New Schedule Week&quot; creation options to initialize one.
+        </p>
+      </div>
+    );
+  }
+
+  if (baseRows.length > 0 && rows.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12 text-center border-2 border-dashed border-[#11B4D4]/20 rounded-2xl bg-white shadow-sm animate-in fade-in duration-300">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-400 mb-4">
+          <Info className="h-6 w-6 text-[#00EEF5]" />
+        </div>
+        <h3 className="text-lg font-semibold text-slate-800">No Shift Coverage Found</h3>
+        <p className="text-sm text-slate-500 max-w-sm mt-1">
+          No employees on Team {team === 'ALABANG' ? 'Alabang' : 'Zamboanga'} are scheduled for <span className="text-[#00EEF5] font-bold">{activeShiftFilter}</span> this week.
         </p>
       </div>
     );
@@ -222,6 +252,9 @@ export default function ScheduleGrid({ team }: ScheduleGridProps) {
                 {/* Days Columns */}
                 {DAYS.map((day) => {
                   const { shift, isDayOff, hasUnsavedChange } = getCellState(row.employee.id, day);
+                  const matchesFilter = !activeShiftFilter ||
+                    (activeShiftFilter === 'DAY-OFF' && isDayOff) ||
+                    (shift && shift.name === activeShiftFilter);
 
                   return (
                     <td 
@@ -239,7 +272,8 @@ export default function ScheduleGrid({ team }: ScheduleGridProps) {
                                 "w-full h-14 rounded-lg flex flex-col items-center justify-center text-xs transition-all duration-200 focus:outline-none border",
                                 isDayOff 
                                   ? "bg-white border-transparent hover:border-slate-300"
-                                  : "hover:scale-[1.02] hover:shadow-sm shadow-black/5 border-transparent"
+                                  : "hover:scale-[1.02] hover:shadow-sm shadow-black/5 border-transparent",
+                                !matchesFilter && "opacity-20 hover:scale-100"
                               )}
                               style={{
                                 backgroundColor: !isDayOff && shift ? shift.colorHex : undefined,

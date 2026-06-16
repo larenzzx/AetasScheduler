@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useScheduleStore } from '@/store/useScheduleStore';
 import ScheduleGrid from '@/components/ScheduleGrid';
 import NewScheduleDialog from '@/components/NewScheduleDialog';
+import ShiftFilterPanel from '@/components/ShiftFilterPanel';
 import { Button } from '@/components/ui/button';
 import { formatWeekRange } from '@/lib/utils';
 import { 
@@ -167,6 +168,8 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      <ShiftFilterPanel />
 
       {/* Main Double Grid Sections */}
       <div className="space-y-8">

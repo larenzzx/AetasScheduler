@@ -20,6 +20,9 @@ interface ScheduleState {
   // Unsaved changes tracking: key is "employeeId_dayOfWeek" -> value is shiftTypeId | null
   unsavedChanges: Record<string, string | null>;
   
+  activeShiftFilter: string | null;
+  setActiveShiftFilter: (filter: string | null) => void;
+  
   companyName: string;
   setCompanyName: (name: string) => void;
   
@@ -60,6 +63,8 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
   shiftTypes: [],
   loading: false,
   unsavedChanges: {},
+  activeShiftFilter: null,
+  setActiveShiftFilter: (filter) => set({ activeShiftFilter: filter }),
 
   setWeekDate: (dateStr) => {
     set({ currentWeekDate: dateStr, unsavedChanges: {} });
