@@ -1,9 +1,10 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { renderToBuffer, Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
+import { renderToBuffer, Document, Page, Text, View, StyleSheet, Image as PdfImage } from '@react-pdf/renderer';
 import { parseISO, format, addDays } from 'date-fns';
 import { formatWeekRange } from '@/lib/utils';
 import { Team, DayOfWeek, Employee, ShiftType } from '@prisma/client';
+import path from 'path';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,6 +53,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     height: 42,
   },
+  logoImage: {
+    width: 20,
+    height: 20,
+    objectFit: 'contain',
+  },
   title: {
     fontSize: 14,
     fontFamily: 'Helvetica-Bold',
@@ -64,29 +70,28 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   metaBox: {
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 4,
-    padding: 6,
-    backgroundColor: '#f8fafc',
-    width: 250,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    height: 42,
   },
   metaRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 3,
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginBottom: 2,
   },
   metaRowLast: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
   },
   metaLabel: {
     fontFamily: 'Helvetica-Bold',
-    fontSize: 7.5,
+    fontSize: 8,
     color: '#475569',
   },
   metaValue: {
-    fontSize: 7.5,
+    fontSize: 8,
     color: '#0f172a',
   },
   tableContainer: {
@@ -101,21 +106,16 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   table: {
-    width: '100%',
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
+    width: 730,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderTopColor: '#cbd5e1',
+    borderLeftColor: '#cbd5e1',
   },
   tr: {
     flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#cbd5e1',
     alignItems: 'stretch',
-    minHeight: 28,
-  },
-  trLast: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    minHeight: 28,
+    height: 32,
   },
   th: {
     backgroundColor: '#f1f5f9',
@@ -124,7 +124,9 @@ const styles = StyleSheet.create({
     padding: 4,
     textAlign: 'center',
     justifyContent: 'center',
+    borderBottomWidth: 1,
     borderRightWidth: 1,
+    borderBottomColor: '#cbd5e1',
     borderRightColor: '#cbd5e1',
   },
   td: {
@@ -132,33 +134,60 @@ const styles = StyleSheet.create({
     fontSize: 7,
     justifyContent: 'center',
     alignItems: 'center',
+    borderBottomWidth: 1,
     borderRightWidth: 1,
+    borderBottomColor: '#cbd5e1',
     borderRightColor: '#cbd5e1',
   },
   employeeColTh: {
-    width: 120,
+    width: 130,
+    backgroundColor: '#f1f5f9',
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 7.5,
+    padding: 4,
     textAlign: 'left',
     alignItems: 'flex-start',
+    justifyContent: 'center',
     paddingLeft: 6,
+    borderBottomWidth: 1,
+    borderRightWidth: 1,
+    borderBottomColor: '#cbd5e1',
+    borderRightColor: '#cbd5e1',
   },
   employeeColTd: {
-    width: 120,
+    width: 130,
     alignItems: 'flex-start',
+    justifyContent: 'center',
     paddingLeft: 6,
+    borderBottomWidth: 1,
+    borderRightWidth: 1,
+    borderBottomColor: '#cbd5e1',
+    borderRightColor: '#cbd5e1',
   },
   idColTh: {
-    width: 35,
+    width: 40,
+    backgroundColor: '#f1f5f9',
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 7.5,
+    padding: 4,
+    textAlign: 'center',
+    justifyContent: 'center',
+    borderBottomWidth: 1,
+    borderRightWidth: 1,
+    borderBottomColor: '#cbd5e1',
+    borderRightColor: '#cbd5e1',
   },
   idColTd: {
-    width: 35,
+    width: 40,
+    justifyContent: 'center',
     alignItems: 'center',
+    borderBottomWidth: 1,
+    borderRightWidth: 1,
+    borderBottomColor: '#cbd5e1',
+    borderRightColor: '#cbd5e1',
   },
   dayCol: {
-    flex: 1,
-  },
-  dayColLast: {
-    flex: 1,
-    borderRightWidth: 0,
+    width: 80,
   },
   employeeName: {
     fontFamily: 'Helvetica-Bold',
@@ -262,6 +291,7 @@ interface PDFDocumentProps {
   zamboangaRows: PDFRow[];
   shiftTypes: ShiftType[];
   weekHeaders: PDFHeader[];
+  logoPath: string;
 }
 
 const SchedulePDFDocument = ({
@@ -271,6 +301,7 @@ const SchedulePDFDocument = ({
   zamboangaRows,
   shiftTypes,
   weekHeaders,
+  logoPath,
 }: PDFDocumentProps) => {
   const renderTable = (teamName: string, rows: PDFRow[]) => {
     return (
@@ -279,17 +310,14 @@ const SchedulePDFDocument = ({
         <View style={styles.table}>
           {/* Header Row */}
           <View style={styles.tr}>
-            <View style={[styles.th, styles.employeeColTh]}>
+            <View style={styles.employeeColTh}>
               <Text style={styles.thText}>Employee</Text>
             </View>
-            <View style={[styles.th, styles.idColTh]}>
+            <View style={styles.idColTh}>
               <Text style={styles.thText}>ID#</Text>
             </View>
-            {weekHeaders.map((h, idx) => (
-              <View
-                key={h.day}
-                style={[styles.th, idx === 6 ? styles.dayColLast : styles.dayCol]}
-              >
+            {weekHeaders.map((h) => (
+              <View key={h.day} style={[styles.th, styles.dayCol]}>
                 <Text style={styles.thText}>{h.label}</Text>
                 <Text style={styles.thSubtext}>{h.dateStr}</Text>
               </View>
@@ -298,34 +326,29 @@ const SchedulePDFDocument = ({
 
           {/* Body Rows */}
           {rows.length === 0 ? (
-            <View style={styles.trLast}>
-              <View style={[styles.td, { flex: 1, padding: 10, alignItems: 'center' }]}>
+            <View style={styles.tr}>
+              <View style={[styles.td, { width: 730, padding: 10, alignItems: 'center' }]}>
                 <Text style={{ color: '#94a3b8', fontStyle: 'italic' }}>
                   No schedule initialized for this week.
                 </Text>
               </View>
             </View>
           ) : (
-            rows.map((row, rowIdx) => {
-              const isLastRow = rowIdx === rows.length - 1;
+            rows.map((row) => {
               return (
-                <View
-                  key={row.employee.id}
-                  style={isLastRow ? styles.trLast : styles.tr}
-                >
+                <View key={row.employee.id} style={styles.tr}>
                   {/* Employee Info */}
-                  <View style={[styles.td, styles.employeeColTd]}>
+                  <View style={styles.employeeColTd}>
                     <Text style={styles.employeeName}>{row.employee.name}</Text>
                     <Text style={styles.employeeTeam}>{row.employee.team}</Text>
                   </View>
                   {/* ID */}
-                  <View style={[styles.td, styles.idColTd]}>
+                  <View style={styles.idColTd}>
                     <Text style={styles.employeeIdText}>{row.employee.employeeId}</Text>
                   </View>
                   {/* Days */}
-                  {DAYS.map((day, idx) => {
+                  {DAYS.map((day) => {
                     const shiftTypeId = row.entries[day];
-                    const isLastCol = idx === 6;
                     const shift = shiftTypeId
                       ? shiftTypes.find((s) => s.id === shiftTypeId)
                       : null;
@@ -335,7 +358,7 @@ const SchedulePDFDocument = ({
                         key={day}
                         style={[
                           styles.td,
-                          isLastCol ? styles.dayColLast : styles.dayCol,
+                          styles.dayCol,
                           shift ? { backgroundColor: shift.colorHex, padding: 0 } : {},
                         ]}
                       >
@@ -383,7 +406,10 @@ const SchedulePDFDocument = ({
         {/* Header container */}
         <View style={styles.headerContainer}>
           <View style={styles.titleContainer}>
-            <Text style={styles.title}>SHIFT SCHEDULE — Month of {monthLabel}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+              <PdfImage src={logoPath} style={styles.logoImage} />
+              <Text style={styles.title}>SHIFT SCHEDULE — Month of {monthLabel}</Text>
+            </View>
             <Text style={styles.subtitle}>
               Generated automatically by Aetas Global Scheduler
             </Text>
@@ -392,11 +418,11 @@ const SchedulePDFDocument = ({
           {/* Top-Right Info Box */}
           <View style={styles.metaBox}>
             <View style={styles.metaRow}>
-              <Text style={styles.metaLabel}>For the week of:</Text>
+              <Text style={styles.metaLabel}>For the week of: </Text>
               <Text style={styles.metaValue}>{dateRangeLabel}</Text>
             </View>
             <View style={styles.metaRowLast}>
-              <Text style={styles.metaLabel}>Company Name:</Text>
+              <Text style={styles.metaLabel}>Company Name: </Text>
               <Text style={styles.metaValue}>AETAS GLOBAL INNOVATION INC</Text>
             </View>
           </View>
@@ -450,6 +476,7 @@ export async function GET(request: NextRequest) {
     const weekEnd = addDays(weekStart, 6);
     const dateRangeLabel = formatWeekRange(weekStart, weekEnd);
     const monthLabel = format(weekStart, 'MMMM yyyy').toUpperCase();
+    const logoPath = path.join(process.cwd(), 'public', 'ATS_logo.PNG');
 
     // 1. Fetch shift types
     const shiftTypes = await prisma.shiftType.findMany({
@@ -534,6 +561,7 @@ export async function GET(request: NextRequest) {
         zamboangaRows={zamboangaRows}
         shiftTypes={shiftTypes}
         weekHeaders={weekHeaders}
+        logoPath={logoPath}
       />
     );
 
