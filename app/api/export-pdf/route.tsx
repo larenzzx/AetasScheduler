@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { renderToBuffer, Document, Page, Text, View, StyleSheet, Image as PdfImage } from '@react-pdf/renderer';
-import { parseISO, format, addDays } from 'date-fns';
+
 import { formatWeekRange } from '@/lib/utils';
 import { Team, DayOfWeek, Employee, ShiftType } from '@prisma/client';
 import path from 'path';
@@ -478,7 +478,8 @@ export async function GET(request: NextRequest) {
     const weekEnd = new Date(`${weekDateStr}T23:59:59.999Z`);
     weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
     const dateRangeLabel = formatWeekRange(weekStart, weekEnd);
-    const monthLabel = format(weekStart, 'MMMM yyyy').toUpperCase();
+    const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+    const monthLabel = monthFormatter.format(weekStart).toUpperCase();
     const logoPath = path.join(process.cwd(), 'public', 'ATS_logo.PNG');
     const companyName = searchParams.get('companyName') || 'AETAS GLOBAL INNOVATION INC';
 
@@ -548,11 +549,12 @@ export async function GET(request: NextRequest) {
 
     // Week headers calculations
     const weekHeaders = DAYS.map((day, idx) => {
-      const dayDate = addDays(weekStart, idx);
+      const dayDate = new Date(weekStart);
+      dayDate.setUTCDate(dayDate.getUTCDate() + idx);
       return {
         day,
         label: DAY_LABELS[day],
-        dateStr: format(dayDate, 'd'),
+        dateStr: String(dayDate.getUTCDate()),
       };
     });
 
