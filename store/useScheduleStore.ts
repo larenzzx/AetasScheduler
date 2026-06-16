@@ -1,7 +1,13 @@
 import { create } from 'zustand';
 import { Team, DayOfWeek, ShiftType, ScheduleWeek, ScheduleGridRow, Employee } from '@/types';
 import { getScheduleData, saveScheduleEntries, deleteScheduleWeek } from '@/app/actions/schedule';
+import { getCurrentUser } from '@/app/actions/auth';
 import { startOfWeek, format } from 'date-fns';
+
+interface UserProfile {
+  email: string;
+  name: string;
+}
 
 interface ScheduleState {
   currentWeekDate: string; // YYYY-MM-DD (always a Monday)
@@ -22,6 +28,9 @@ interface ScheduleState {
   
   activeShiftFilter: string | null;
   setActiveShiftFilter: (filter: string | null) => void;
+  
+  currentUser: UserProfile | null;
+  fetchCurrentUser: () => Promise<void>;
   
   companyName: string;
   setCompanyName: (name: string) => void;
@@ -65,6 +74,11 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
   unsavedChanges: {},
   activeShiftFilter: null,
   setActiveShiftFilter: (filter) => set({ activeShiftFilter: filter }),
+  currentUser: null,
+  fetchCurrentUser: async () => {
+    const user = await getCurrentUser();
+    set({ currentUser: user });
+  },
 
   setWeekDate: (dateStr) => {
     set({ currentWeekDate: dateStr, unsavedChanges: {} });

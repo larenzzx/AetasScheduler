@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
+import { useScheduleStore } from '@/store/useScheduleStore';
 import { cn } from '@/lib/utils';
 import { 
   LayoutDashboard, 
@@ -42,6 +43,11 @@ interface SidebarProps {
 export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const { currentUser, fetchCurrentUser } = useScheduleStore();
+
+  useEffect(() => {
+    fetchCurrentUser();
+  }, [fetchCurrentUser]);
 
   return (
     <>
@@ -114,13 +120,17 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
         {/* Footer / Profile */}
         <div className="border-t border-[#11B4D4]/20 bg-[#080C1A] p-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#062E56] text-white font-semibold text-xs border border-[#11B4D4]/30">
-              AD
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#062E56] text-white font-semibold text-xs border border-[#11B4D4]/30 shrink-0 uppercase">
+              {currentUser ? currentUser.name.substring(0, 2) : 'AD'}
             </div>
-            <div className="flex flex-col">
-              <span className="text-xs font-semibold text-white">Admin Dashboard</span>
-              <span className="text-[10px] text-[#11B4D4]/60">admin@aetasglobal.com</span>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-semibold text-white truncate max-w-[120px]" title={currentUser?.name || 'Admin Dashboard'}>
+                {currentUser ? currentUser.name : 'Admin Dashboard'}
+              </span>
+              <span className="text-[10px] text-[#11B4D4]/60 truncate max-w-[120px]" title={currentUser?.email || 'admin@aetasglobal.com'}>
+                {currentUser ? currentUser.email : 'admin@aetasglobal.com'}
+              </span>
             </div>
           </div>
           <button 
