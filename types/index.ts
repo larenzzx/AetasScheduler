@@ -1,7 +1,15 @@
-import { Employee, ShiftType, ScheduleWeek, ScheduleEntry, DayOfWeek, Team } from '@prisma/client';
+import type { Employee, ShiftType, ScheduleWeek, ScheduleEntry } from '@prisma/client';
 
 export type { Employee, ShiftType, ScheduleWeek, ScheduleEntry };
-export { Team, DayOfWeek };
+
+export const Team = {
+  ALABANG: 'ALABANG',
+  ZAMBOANGA: 'ZAMBOANGA',
+} as const;
+
+export type Team = typeof Team[keyof typeof Team];
+
+export type DayOfWeek = 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT' | 'SUN';
 
 export interface ScheduleEntryInput {
   employeeId: string;
