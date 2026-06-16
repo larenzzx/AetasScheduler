@@ -27,10 +27,8 @@ export async function getScheduleData(
       team: team,
       isActive: true,
     },
-    orderBy: {
-      name: 'asc',
-    },
   });
+  employees.sort((a, b) => (parseInt(a.employeeId, 10) || 0) - (parseInt(b.employeeId, 10) || 0));
 
   // 3. Fetch all shift types
   const shiftTypes = await prisma.shiftType.findMany({
@@ -116,8 +114,8 @@ export async function createScheduleWeek(
   // 2. Fetch active employees
   const employees = await prisma.employee.findMany({
     where: { team, isActive: true },
-    orderBy: { name: 'asc' },
   });
+  employees.sort((a, b) => (parseInt(a.employeeId, 10) || 0) - (parseInt(b.employeeId, 10) || 0));
 
 
   const days: DayOfWeek[] = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
@@ -200,4 +198,24 @@ export async function saveScheduleEntries(
       })
     )
   );
+}
+
+export async function deleteScheduleWeek(
+  weekStartDateStr: string,
+  team: Team
+): Promise<void> {
+  const weekStart = parseISO(weekStartDateStr);
+  try {
+    await prisma.scheduleWeek.delete({
+      where: {
+        weekStartDate_team: {
+          weekStartDate: weekStart,
+          team: team,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Failed to delete schedule week:', error);
+    throw new Error('Failed to delete schedule week.');
+  }
 }

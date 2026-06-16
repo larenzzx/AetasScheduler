@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useScheduleStore } from '@/store/useScheduleStore';
 import ScheduleGrid from '@/components/ScheduleGrid';
 import NewScheduleDialog from '@/components/NewScheduleDialog';
+import ResetScheduleDialog from '@/components/ResetScheduleDialog';
 import { Button } from '@/components/ui/button';
 import { cn, formatWeekRange } from '@/lib/utils';
 import { ChevronLeft, ChevronRight, Calendar, Info } from 'lucide-react';
@@ -120,10 +121,13 @@ export default function SchedulePage() {
           ))}
         </div>
 
-        {/* Legend Quick Info */}
-        <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
-          <Info className="h-3.5 w-3.5" />
-          <span>Click on cells to assign/update shifts.</span>
+        {/* Actions & Legend Group */}
+        <div className="flex items-center gap-4 text-xs">
+          <div className="hidden sm:flex items-center gap-1.5 text-slate-400 font-medium">
+            <Info className="h-3.5 w-3.5" />
+            <span>Click on cells to assign/update shifts.</span>
+          </div>
+          <ResetScheduleDialog />
         </div>
       </div>
 

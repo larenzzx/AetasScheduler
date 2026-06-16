@@ -5,12 +5,8 @@ import { Team } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 
 export async function getEmployees() {
-  return await prisma.employee.findMany({
-    orderBy: [
-      { isActive: 'desc' },
-      { name: 'asc' },
-    ],
-  });
+  const emps = await prisma.employee.findMany();
+  return emps.sort((a, b) => (parseInt(a.employeeId, 10) || 0) - (parseInt(b.employeeId, 10) || 0));
 }
 
 export async function getActiveShiftTypes() {

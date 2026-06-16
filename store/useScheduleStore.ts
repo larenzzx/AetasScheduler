@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { Team, DayOfWeek, ShiftType, ScheduleWeek, ScheduleGridRow } from '@/types';
-import { getScheduleData, saveScheduleEntries } from '@/app/actions/schedule';
+import { getScheduleData, saveScheduleEntries, deleteScheduleWeek } from '@/app/actions/schedule';
 import { startOfWeek, format } from 'date-fns';
 
 interface ScheduleState {
@@ -26,6 +26,7 @@ interface ScheduleState {
   discardChanges: () => void;
   saveChanges: () => Promise<void>;
   hasChanges: () => boolean;
+  deleteSchedule: (team: Team) => Promise<void>;
 }
 
 // Default current week date as Monday of the current week
@@ -156,5 +157,19 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
 
   hasChanges: () => {
     return Object.keys(get().unsavedChanges).length > 0;
+  },
+
+  deleteSchedule: async (team) => {
+    const { currentWeekDate, fetchSchedule } = get();
+    set({ loading: true });
+    try {
+      await deleteScheduleWeek(currentWeekDate, team);
+      set({ unsavedChanges: {} });
+      await fetchSchedule();
+    } catch (error) {
+      console.error('Failed to delete schedule week:', error);
+      set({ loading: false });
+      throw error;
+    }
   },
 }));
