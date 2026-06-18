@@ -307,6 +307,66 @@ export async function validateSchedule(
     }
   }
 
+  // Phase 4: New Employee Mentor Requirement
+  for (const employee of employees) {
+    if (employee.requiresMentor) {
+      for (const dayOfWeekStr of daysOfWeekList) {
+        // Find employee's shift on this day
+        const update = updates.find(
+          (u) => u.employeeId === employee.id && u.dayOfWeek === dayOfWeekStr
+        );
+        let shiftTypeId: string | null = null;
+        if (update) {
+          shiftTypeId = update.shiftTypeId;
+        } else {
+          const dbMatch = allEntries.find(
+            (e) =>
+              e.employeeId === employee.id &&
+              e.scheduleWeekId === currentWeek.id &&
+              e.dayOfWeek === dayOfWeekStr
+          );
+          shiftTypeId = dbMatch ? dbMatch.shiftTypeId : null;
+        }
+
+        if (shiftTypeId) {
+          // Find companions scheduled on same day/shift
+          const companions = employees.filter((other) => {
+            if (other.id === employee.id) return false;
+
+            const otherUpdate = updates.find(
+              (u) => u.employeeId === other.id && u.dayOfWeek === dayOfWeekStr
+            );
+            let otherShiftTypeId: string | null = null;
+            if (otherUpdate) {
+              otherShiftTypeId = otherUpdate.shiftTypeId;
+            } else {
+              const dbMatch = allEntries.find(
+                (e) =>
+                  e.employeeId === other.id &&
+                  e.scheduleWeekId === currentWeek.id &&
+                  e.dayOfWeek === dayOfWeekStr
+              );
+              otherShiftTypeId = dbMatch ? dbMatch.shiftTypeId : null;
+            }
+            return otherShiftTypeId === shiftTypeId;
+          });
+
+          // Check if at least one companion is experienced or is the mentor
+          const hasMentorPresent = companions.some(
+            (comp) => !comp.requiresMentor || comp.id === employee.mentorId
+          );
+
+          if (!hasMentorPresent) {
+            const shiftType = shiftTypesMap.get(shiftTypeId);
+            errors.push(
+              `${employee.name} requires a mentor present — cannot be scheduled solo on ${shiftType?.name ?? 'shift'} on ${dayOfWeekStr}.`
+            );
+          }
+        }
+      }
+    }
+  }
+
   return {
     success: errors.length === 0,
     errors,

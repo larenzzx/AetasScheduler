@@ -56,6 +56,8 @@ export default function EmployeesPage() {
   const [newName, setNewName] = useState('');
   const [newEmployeeId, setNewEmployeeId] = useState('');
   const [newTeam, setNewTeam] = useState<Team>(Team.ALABANG);
+  const [newRequiresMentor, setNewRequiresMentor] = useState(false);
+  const [newMentorId, setNewMentorId] = useState<string>('NONE');
 
   // Edit Employee states
   const [editOpen, setEditOpen] = useState(false);
@@ -66,6 +68,8 @@ export default function EmployeesPage() {
   const [editEmployeeId, setEditEmployeeId] = useState('');
   const [editTeam, setEditTeam] = useState<Team>(Team.ALABANG);
   const [editIsActive, setEditIsActive] = useState(true);
+  const [editRequiresMentor, setEditRequiresMentor] = useState(false);
+  const [editMentorId, setEditMentorId] = useState<string>('NONE');
 
   // Deactivate confirmation modal states
   const [deactivateOpen, setDeactivateOpen] = useState(false);
@@ -110,6 +114,8 @@ export default function EmployeesPage() {
         name: newName.trim(),
         employeeId: newEmployeeId.trim(),
         team: newTeam,
+        requiresMentor: newRequiresMentor,
+        mentorId: newMentorId === 'NONE' ? null : newMentorId,
       });
 
       if (response.success) {
@@ -119,6 +125,8 @@ export default function EmployeesPage() {
         setNewName('');
         setNewEmployeeId('');
         setNewTeam(Team.ALABANG);
+        setNewRequiresMentor(false);
+        setNewMentorId('NONE');
         // Reload list
         loadData();
       } else {
@@ -139,6 +147,8 @@ export default function EmployeesPage() {
     setEditEmployeeId(employee.employeeId);
     setEditTeam(employee.team);
     setEditIsActive(employee.isActive);
+    setEditRequiresMentor(employee.requiresMentor || false);
+    setEditMentorId(employee.mentorId || 'NONE');
     setEditError(null);
     setEditOpen(true);
   };
@@ -166,6 +176,8 @@ export default function EmployeesPage() {
         employeeId: editEmployeeId.trim(),
         team: editTeam,
         isActive: editIsActive,
+        requiresMentor: editRequiresMentor,
+        mentorId: editMentorId === 'NONE' ? null : editMentorId,
       });
 
       if (response.success) {
@@ -336,6 +348,50 @@ export default function EmployeesPage() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Requires Mentor Checkbox */}
+                <div className="flex items-center gap-2.5 pt-1">
+                  <input
+                    id="newRequiresMentor"
+                    type="checkbox"
+                    checked={newRequiresMentor}
+                    onChange={(e) => {
+                      setNewRequiresMentor(e.target.checked);
+                      if (!e.target.checked) setNewMentorId('NONE');
+                    }}
+                    className="h-4.5 w-4.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500/20"
+                  />
+                  <label htmlFor="newRequiresMentor" className="text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer">
+                    Requires Mentor
+                  </label>
+                </div>
+
+                {/* Mentor Dropdown */}
+                {newRequiresMentor && (
+                  <div className="grid gap-2">
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                      Assign Mentor
+                    </label>
+                    <Select 
+                      value={newMentorId} 
+                      onValueChange={(val) => setNewMentorId(val || 'NONE')}
+                    >
+                      <SelectTrigger className="border-slate-200 text-slate-800 w-full">
+                        <SelectValue placeholder="Select Mentor (Optional)" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white border-slate-200">
+                        <SelectItem value="NONE" className="hover:bg-slate-50">No Mentor</SelectItem>
+                        {employees
+                          .filter((emp) => !emp.requiresMentor && emp.isActive)
+                          .map((emp) => (
+                            <SelectItem key={emp.id} value={emp.id} className="hover:bg-slate-50">
+                              {emp.name} ({emp.team})
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
 
               <DialogFooter>
@@ -469,8 +525,16 @@ export default function EmployeesPage() {
                     </td>
 
                     {/* Name */}
-                    <td className="px-6 py-4 font-semibold text-slate-800">
-                      {emp.name}
+                    <td className="px-6 py-4">
+                      <div className="font-semibold text-slate-800">{emp.name}</div>
+                      {emp.requiresMentor && (
+                        <div className="text-[10px] text-amber-600 font-medium mt-0.5">
+                          Requires Mentor {(() => {
+                            const mentor = emp.mentorId ? employees.find((e) => e.id === emp.mentorId) : null;
+                            return mentor ? `(Mentor: ${mentor.name})` : '';
+                          })()}
+                        </div>
+                      )}
                     </td>
 
                     {/* Team */}
@@ -580,7 +644,17 @@ export default function EmployeesPage() {
 
                 {/* Name */}
                 <div className="flex items-start justify-between gap-2">
-                  <span className="font-bold text-slate-800 text-sm truncate">{emp.name}</span>
+                  <div className="flex flex-col">
+                    <span className="font-bold text-slate-800 text-sm truncate">{emp.name}</span>
+                    {emp.requiresMentor && (
+                      <span className="text-[10px] text-amber-600 font-medium mt-0.5">
+                        Requires Mentor {(() => {
+                          const mentor = emp.mentorId ? employees.find((e) => e.id === emp.mentorId) : null;
+                          return mentor ? `(Mentor: ${mentor.name})` : '';
+                        })()}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Mobile Actions panel */}
@@ -696,6 +770,50 @@ export default function EmployeesPage() {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Requires Mentor Checkbox */}
+              <div className="flex items-center gap-2.5 pt-1">
+                <input
+                  id="editRequiresMentor"
+                  type="checkbox"
+                  checked={editRequiresMentor}
+                  onChange={(e) => {
+                    setEditRequiresMentor(e.target.checked);
+                    if (!e.target.checked) setEditMentorId('NONE');
+                  }}
+                  className="h-4.5 w-4.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500/20"
+                />
+                <label htmlFor="editRequiresMentor" className="text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer">
+                  Requires Mentor
+                </label>
+              </div>
+
+              {/* Mentor Dropdown */}
+              {editRequiresMentor && (
+                <div className="grid gap-2">
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Assign Mentor
+                  </label>
+                  <Select 
+                    value={editMentorId} 
+                    onValueChange={(val) => setEditMentorId(val || 'NONE')}
+                  >
+                    <SelectTrigger className="border-slate-200 text-slate-800 w-full">
+                      <SelectValue placeholder="Select Mentor (Optional)" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border-slate-200">
+                      <SelectItem value="NONE" className="hover:bg-slate-50">No Mentor</SelectItem>
+                      {employees
+                        .filter((emp) => !emp.requiresMentor && emp.isActive && emp.id !== editingId)
+                        .map((emp) => (
+                          <SelectItem key={emp.id} value={emp.id} className="hover:bg-slate-50">
+                            {emp.name} ({emp.team})
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {/* Active Status Checkbox */}
               <div className="flex items-center gap-2.5 pt-1">
