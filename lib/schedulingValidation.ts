@@ -272,6 +272,41 @@ export async function validateSchedule(
     }
   }
 
+  // Phase 3: Gender-Aware Night Shift Rule
+  const nightShiftTypes = shiftTypes.filter((st) => st.isNightShift);
+  
+  for (const dayOfWeekStr of daysOfWeekList) {
+    for (const nightShiftType of nightShiftTypes) {
+      const scheduledEmployees = employees.filter((employee) => {
+        const update = updates.find(
+          (u) => u.employeeId === employee.id && u.dayOfWeek === dayOfWeekStr
+        );
+        let shiftTypeId: string | null = null;
+        if (update) {
+          shiftTypeId = update.shiftTypeId;
+        } else {
+          const dbMatch = allEntries.find(
+            (e) =>
+              e.employeeId === employee.id &&
+              e.scheduleWeekId === currentWeek.id &&
+              e.dayOfWeek === dayOfWeekStr
+          );
+          shiftTypeId = dbMatch ? dbMatch.shiftTypeId : null;
+        }
+        return shiftTypeId === nightShiftType.id;
+      });
+
+      const femaleScheduled = scheduledEmployees.filter((emp) => emp.gender === 'FEMALE');
+
+      if (femaleScheduled.length > 0 && scheduledEmployees.length === 1) {
+        const aloneEmp = femaleScheduled[0];
+        errors.push(
+          `${aloneEmp.name} would be alone on ${nightShiftType.name} on ${dayOfWeekStr} — at least one companion is required for night shifts.`
+        );
+      }
+    }
+  }
+
   return {
     success: errors.length === 0,
     errors,
