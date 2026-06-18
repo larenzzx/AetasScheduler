@@ -2,7 +2,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { DayOfWeek, Team, ScheduleDataResponse, ScheduleGridRow } from '@/types';
-import { formatWeekRange } from '@/lib/utils';
+import { formatWeekRange, sortScheduleRows } from '@/lib/utils';
 import { validateSchedule } from '@/lib/schedulingValidation';
 
 export async function getScheduleData(
@@ -79,7 +79,7 @@ export async function getScheduleData(
     week,
     employees,
     shiftTypes,
-    rows,
+    rows: sortScheduleRows(rows, shiftTypes),
   };
 }
 

@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { renderToBuffer, Document, Page, Text, View, StyleSheet, Image as PdfImage } from '@react-pdf/renderer';
 
-import { formatWeekRange } from '@/lib/utils';
+import { formatWeekRange, sortScheduleRows } from '@/lib/utils';
 import { Team, DayOfWeek, Employee, ShiftType } from '@prisma/client';
 import path from 'path';
 
@@ -544,8 +544,8 @@ export async function GET(request: NextRequest) {
       });
     };
 
-    const alabangRows = buildRows(alabangEmployees, alabangEntries);
-    const zamboangaRows = buildRows(zamboangaEmployees, zamboangaEntries);
+    const alabangRows = sortScheduleRows(buildRows(alabangEmployees, alabangEntries), shiftTypes);
+    const zamboangaRows = sortScheduleRows(buildRows(zamboangaEmployees, zamboangaEntries), shiftTypes);
 
     // Week headers calculations
     const weekHeaders = DAYS.map((day, idx) => {
