@@ -30,4 +30,10 @@ export interface ScheduleDataResponse {
   employees: Employee[];
   shiftTypes: ShiftType[];
   rows: ScheduleGridRow[];
+  summary?: {
+    rotatedCount: number;
+    flaggedCount: number;
+    skippedCount: number;
+    flags: Array<{ employeeName: string; reason: string }>;
+  };
 }

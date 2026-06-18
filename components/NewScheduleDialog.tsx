@@ -16,7 +16,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Plus, CalendarRange, Loader2 } from 'lucide-react';
+import { Plus, CalendarRange, Loader2, AlertTriangle } from 'lucide-react';
 import { startOfWeek, format, parseISO } from 'date-fns';
 
 export default function NewScheduleDialog() {
@@ -28,6 +28,16 @@ export default function NewScheduleDialog() {
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [teamSelection, setTeamSelection] = useState<'ALABANG' | 'ZAMBOANGA' | 'BOTH'>('BOTH');
   const [strategy, setStrategy] = useState<'blank' | 'copy' | 'generate'>('generate');
+
+  // Summary States
+  const [showSummary, setShowSummary] = useState(false);
+  const [summaries, setSummaries] = useState<Array<{
+    team: string;
+    rotatedCount: number;
+    flaggedCount: number;
+    skippedCount: number;
+    flags: Array<{ employeeName: string; reason: string }>;
+  }>>([]);
 
   const handleCreate = async () => {
     setLoading(true);
@@ -44,16 +54,35 @@ export default function NewScheduleDialog() {
       }
 
       // Execute creation for selected teams
-      await Promise.all(
-        teamsToCreate.map((t) => createScheduleWeek(targetMondayStr, t, strategy))
+      const responses = await Promise.all(
+        teamsToCreate.map(async (t) => {
+          const res = await createScheduleWeek(targetMondayStr, t, strategy);
+          return { team: t, summary: res.summary };
+        })
       );
 
       // Set store to the newly created week and trigger reload
       setWeekDate(targetMondayStr);
       await fetchSchedule();
       
-      toast.success('Schedule week created successfully!');
-      setOpen(false);
+      toast.success('Schedule week initialized successfully!');
+
+      if (strategy === 'generate') {
+        const activeSummaries = responses
+          .filter(r => r.summary)
+          .map(r => ({
+            team: r.team,
+            rotatedCount: r.summary!.rotatedCount,
+            flaggedCount: r.summary!.flaggedCount,
+            skippedCount: r.summary!.skippedCount,
+            flags: r.summary!.flags
+          }));
+        
+        setSummaries(activeSummaries);
+        setShowSummary(true);
+      } else {
+        setOpen(false);
+      }
     } catch (error) {
       console.error('Failed to create schedule week:', error);
       toast.error('An error occurred while creating the schedule week.');
@@ -62,8 +91,93 @@ export default function NewScheduleDialog() {
     }
   };
 
+  const handleOpenChange = (val: boolean) => {
+    setOpen(val);
+    if (!val) {
+      setShowSummary(false);
+    }
+  };
+
+  if (showSummary) {
+    return (
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent className="sm:max-w-[500px] bg-white border-slate-200">
+          <DialogHeader>
+            <DialogTitle className="text-slate-800 flex items-center gap-2 font-bold tracking-tight">
+              <CalendarRange className="h-5 w-5 text-emerald-600 animate-bounce" />
+              Generation Summary
+            </DialogTitle>
+            <DialogDescription className="text-slate-500">
+              Roster generation and bi-weekly shift rotation results.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4 space-y-6 max-h-[60vh] overflow-y-auto pr-1">
+            {summaries.map((s) => (
+              <div key={s.team} className="space-y-4 border-b border-slate-100 last:border-0 pb-4 last:pb-0">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    TEAM {s.team}
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="rounded-lg bg-emerald-50 border border-emerald-100 p-3 text-center">
+                    <span className="block text-2xl font-bold text-emerald-600">{s.rotatedCount}</span>
+                    <span className="text-[10px] font-semibold text-emerald-500 uppercase tracking-wider">Rotated</span>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 border border-slate-100 p-3 text-center">
+                    <span className="block text-2xl font-bold text-slate-500">{s.skippedCount}</span>
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Skipped</span>
+                  </div>
+                  <div className="rounded-lg bg-red-50 border border-red-100 p-3 text-center">
+                    <span className="block text-2xl font-bold text-red-600">{s.flaggedCount}</span>
+                    <span className="text-[10px] font-semibold text-red-500 uppercase tracking-wider">Flagged</span>
+                  </div>
+                </div>
+
+                {s.flags.length > 0 ? (
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                      <AlertTriangle className="h-4 w-4 text-red-500" />
+                      Flagged for Manual Review ({s.flags.length})
+                    </h4>
+                    <div className="space-y-2">
+                      {s.flags.map((f, idx) => (
+                        <div key={idx} className="rounded-lg bg-red-50/50 border border-red-100 p-3 text-xs leading-relaxed text-red-700 space-y-1">
+                          <span className="font-bold block text-red-800">{f.employeeName}</span>
+                          <span className="block text-slate-600">{f.reason}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-2 bg-emerald-50/30 rounded-lg text-xs font-medium text-emerald-700 border border-emerald-100/50">
+                    No conflicts detected. All active staff rotated successfully!
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <DialogFooter>
+            <Button
+              onClick={() => {
+                setOpen(false);
+                setShowSummary(false);
+              }}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white border-none shadow-md shadow-emerald-600/10 font-semibold w-full"
+            >
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger
         render={
           <Button className="bg-emerald-600 hover:bg-emerald-700 text-white border-none shadow-md shadow-emerald-600/10 font-medium transition-all duration-200">

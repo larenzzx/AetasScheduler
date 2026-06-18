@@ -217,39 +217,123 @@ export async function createScheduleWeek(
       .map((name) => shiftTypes.find((st) => st.name === name))
       .filter((st): st is NonNullable<typeof st> => !!st);
 
-    const entriesToCreate = [];
+    // Find previous week's start date
+    const prevWeekStart = new Date(weekStart);
+    prevWeekStart.setUTCDate(prevWeekStart.getUTCDate() - 7);
+    const prevWeek = await prisma.scheduleWeek.findUnique({
+      where: {
+        weekStartDate_team: {
+          weekStartDate: prevWeekStart,
+          team,
+        },
+      },
+      include: {
+        entries: true,
+      },
+    });
 
+    const proposedUpdates: Array<{ employeeId: string; dayOfWeek: DayOfWeek; shiftTypeId: string | null }> = [];
+    const flaggedEmployees = new Set<string>();
+    const flaggedReasons = new Map<string, string[]>();
+
+    // Initial assignment
     for (const employee of employees) {
+      const isFixed = employee.isFixedSchedule || !rotationEnabled;
       const baseShiftType = employee.currentShiftTypeId
         ? shiftTypes.find((st) => st.id === employee.currentShiftTypeId)
         : null;
 
       for (const day of days) {
         let shiftTypeId: string | null = null;
-
         if (baseShiftType) {
           let finalShiftType = baseShiftType;
-
-          if (!employee.isFixedSchedule && rotationEnabled) {
+          if (!isFixed) {
             const baseIdx = rotationPath.findIndex((st) => st.id === baseShiftType.id);
             if (baseIdx !== -1) {
               finalShiftType = rotationPath[(baseIdx + periodIndex) % rotationPath.length];
             }
           }
-
           if (finalShiftType.daysOfWeek.includes(day)) {
             shiftTypeId = finalShiftType.id;
           }
         }
-
-        entriesToCreate.push({
+        proposedUpdates.push({
           employeeId: employee.id,
-          scheduleWeekId: week.id,
           dayOfWeek: day,
           shiftTypeId,
         });
       }
     }
+
+    // Iterative validation and revert loop
+    let stable = false;
+    let iteration = 0;
+    const maxIterations = 5;
+
+    while (!stable && iteration < maxIterations) {
+      iteration++;
+      // We must pass week.id and proposed updates
+      const validationResult = await validateSchedule(week.id, proposedUpdates);
+      
+      if (validationResult.success) {
+        stable = true;
+      } else {
+        let newlyFlagged = false;
+        
+        for (const error of validationResult.errors) {
+          for (const employee of employees) {
+            if (employee.isFixedSchedule || !rotationEnabled) continue; // Skipped, not rotated
+            if (flaggedEmployees.has(employee.id)) continue;
+
+            if (error.includes(employee.name)) {
+              flaggedEmployees.add(employee.id);
+              newlyFlagged = true;
+              
+              if (!flaggedReasons.has(employee.id)) {
+                flaggedReasons.set(employee.id, []);
+              }
+              flaggedReasons.get(employee.id)!.push(error);
+
+              // Revert this employee's schedule to their previous week's shift or base shift
+              for (const day of days) {
+                const prevEntry = prevWeek?.entries.find(
+                  (e) => e.employeeId === employee.id && e.dayOfWeek === day
+                );
+                
+                let revertedShiftTypeId: string | null = null;
+                if (prevEntry) {
+                  revertedShiftTypeId = prevEntry.shiftTypeId;
+                } else if (employee.currentShiftTypeId) {
+                  const baseST = shiftTypes.find((st) => st.id === employee.currentShiftTypeId);
+                  if (baseST && baseST.daysOfWeek.includes(day)) {
+                    revertedShiftTypeId = employee.currentShiftTypeId;
+                  }
+                }
+
+                const idx = proposedUpdates.findIndex(
+                  (u) => u.employeeId === employee.id && u.dayOfWeek === day
+                );
+                if (idx !== -1) {
+                  proposedUpdates[idx].shiftTypeId = revertedShiftTypeId;
+                }
+              }
+            }
+          }
+        }
+
+        if (!newlyFlagged) {
+          stable = true;
+        }
+      }
+    }
+
+    // Save final entries
+    const entriesToCreate = proposedUpdates.map(u => ({
+      employeeId: u.employeeId,
+      scheduleWeekId: week.id,
+      dayOfWeek: u.dayOfWeek,
+      shiftTypeId: u.shiftTypeId
+    }));
 
     await prisma.scheduleEntry.deleteMany({
       where: { scheduleWeekId: week.id },
@@ -258,6 +342,39 @@ export async function createScheduleWeek(
     await prisma.scheduleEntry.createMany({
       data: entriesToCreate,
     });
+
+    // Build summary counts
+    let rotatedCount = 0;
+    let flaggedCount = 0;
+    let skippedCount = 0;
+    const flags: Array<{ employeeName: string; reason: string }> = [];
+
+    for (const employee of employees) {
+      if (employee.isFixedSchedule || !rotationEnabled) {
+        skippedCount++;
+      } else if (flaggedEmployees.has(employee.id)) {
+        flaggedCount++;
+        flags.push({
+          employeeName: employee.name,
+          reason: Array.from(new Set(flaggedReasons.get(employee.id) || [])).join('; ')
+        });
+      } else {
+        rotatedCount++;
+      }
+    }
+
+    const summary = {
+      rotatedCount,
+      flaggedCount,
+      skippedCount,
+      flags
+    };
+
+    const scheduleData = await getScheduleData(weekStartDateStr, team);
+    return {
+      ...scheduleData,
+      summary
+    };
   }
 
   // Reload the newly created schedule
