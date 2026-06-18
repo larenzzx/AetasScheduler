@@ -213,6 +213,63 @@ export async function validateSchedule(
         );
       }
     }
+
+    // Phase 2: Workday limit checks (skipped for fixed schedules)
+    if (!employee.isFixedSchedule) {
+      // 1. Consecutive workdays check (max consecutive days)
+      const maxConsecutive = rulesConfig?.maxConsecutiveDays ?? 6;
+      let currentStreak = 0;
+      let streakStartIdx = -1;
+
+      for (let idx = 0; idx < timeline.length; idx++) {
+        const day = timeline[idx];
+        const isWork = day.shiftType !== null && day.shiftType.startTime !== null;
+
+        if (isWork) {
+          if (currentStreak === 0) {
+            streakStartIdx = idx;
+          }
+          currentStreak++;
+        } else {
+          if (currentStreak > maxConsecutive) {
+            const overlapCurrentWeek = streakStartIdx <= 13 && (streakStartIdx + currentStreak - 1) >= 7;
+            if (overlapCurrentWeek) {
+              errors.push(
+                `Employee ${employee.name} would work ${currentStreak} consecutive days (max ${maxConsecutive}).`
+              );
+            }
+          }
+          currentStreak = 0;
+          streakStartIdx = -1;
+        }
+      }
+
+      if (currentStreak > maxConsecutive) {
+        const overlapCurrentWeek = streakStartIdx <= 13 && (streakStartIdx + currentStreak - 1) >= 7;
+        if (overlapCurrentWeek) {
+          errors.push(
+            `Employee ${employee.name} would work ${currentStreak} consecutive days (max ${maxConsecutive}).`
+          );
+        }
+      }
+
+      // 2. Weekly workday limit check (max weekly workdays in current week)
+      const maxWeekly = rulesConfig?.maxWeeklyWorkdays ?? 5;
+      let currentWeekWorkDays = 0;
+      for (let idx = 7; idx <= 13; idx++) {
+        const day = timeline[idx];
+        const isWork = day.shiftType !== null && day.shiftType.startTime !== null;
+        if (isWork) {
+          currentWeekWorkDays++;
+        }
+      }
+
+      if (currentWeekWorkDays > maxWeekly) {
+        errors.push(
+          `Employee ${employee.name} would work ${currentWeekWorkDays} days this week (max ${maxWeekly}).`
+        );
+      }
+    }
   }
 
   return {
