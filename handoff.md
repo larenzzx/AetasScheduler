@@ -1,78 +1,131 @@
-# 🚀 Project Handoff: Aetas Scheduler
+# 🤝 Project Handoff & CLI Sync Context: Aetas Scheduler
 
-This document serves as the session handoff for the **Aetas Shift Scheduling Management System** built for **Aetas Global Innovation Inc.**
-
----
-
-## 📌 Project Overview
-Replacing manual Excel shift scheduling with an automated full-stack web application.
-* **Tech Stack:** Next.js 14 (App Router), TypeScript, Tailwind CSS, shadcn/ui components (based on **Base UI** / `base-nova` style), Zustand (state store), Prisma 7, Supabase (PostgreSQL), `date-fns`, and `lucide-react`.
-* **Product Requirements:** Refer to the core [PRD.md](file:///C:/Users/markl/coding/aetasscheduler/PRD.md).
+This document serves as a developer and AI agent handoff file for the **Aetas Shift Scheduling Management System** built for **Aetas Global Innovation Inc.** It details the current state of the application, code architecture, and steps required to continue development when moving to a different device or launching a new workspace using the **Antigravity CLI**.
 
 ---
 
-## ⚡ Current Status (Completed Milestones)
+## 📌 Project Overview & Architecture
 
-### 1. Database Setup & Seeding (Steps 1, 2, 3)
-* Defined PostgreSQL relational models in [prisma/schema.prisma](file:///C:/Users/markl/coding/aetasscheduler/prisma/schema.prisma) (`Employee`, `ShiftType`, `ScheduleWeek`, `ScheduleEntry`).
-* Configured [prisma.config.ts](file:///C:/Users/markl/coding/aetasscheduler/prisma.config.ts) for **Prisma 7**:
-  * Routed migrations/CLI commands to the Supabase direct URL (`DIRECT_URL`, port `5432`).
-  * Routed application runtime connection to the transaction pooler (`DATABASE_URL`, port `6543`).
-* Installed `pg` and `@prisma/adapter-pg` driver adapters to support Prisma 7's new engine-less runtime.
-* Created global Prisma Client helper in [lib/prisma.ts](file:///C:/Users/markl/coding/aetasscheduler/lib/prisma.ts).
-* Created and executed [prisma/seed.ts](file:///C:/Users/markl/coding/aetasscheduler/prisma/seed.ts) to populate initial shift types and employees:
-  * Assigned **Jeanelle Andrade** to ID `19` and **Mariel Quijano** to ID `16` (swapped per request).
-  * Removed `ADJUST SHIFT` from the database database entries (it is now calculated dynamically in the UI instead).
+AetasScheduler is a full-stack Next.js 14 App Router application configured for local development and direct Vercel deployment. It manages employee shifts, scheduling constraints, rotations, and roles for two teams: **Team Alabang (Manila)** and **Team Zamboanga**.
 
-### 2. Core Scheduling Grid & Unsaved Edits (Step 4)
-* Created [components/ScheduleGrid.tsx](file:///C:/Users/markl/coding/aetasscheduler/components/ScheduleGrid.tsx) using Base UI. Displays color-coded shift cells with dropdown triggers.
-* **Real-time Indicators:** Added badge next to employee IDs showing their week's scheduled status (recalculates in real-time upon cell clicks):
-  * *Single Shift:* Badge color matches their shift.
-  * *2 Shifts:* Yellow `"Mixed Shifts"` badge.
-  * *3+ Shifts:* Red `"Adjust Shift"` badge.
-  * *All Leave:* Purple `"Leave"` badge.
-  * *All Off:* Red `"Day-Off"` badge.
-* **Date Header Labels:** Day columns dynamically render their exact numeric dates (e.g. `Mon 15`, `Tue 16`).
-* **Unsaved Changes Banner:** Floating [components/UnsavedChangesBanner.tsx](file:///C:/Users/markl/coding/aetasscheduler/components/UnsavedChangesBanner.tsx) tracks queued edits, enabling bulk-saving to Supabase via SQL transaction or discarding.
-
-### 3. Schedule Week Creation Flow (Step 5)
-* Created server actions in [app/actions/schedule.ts](file:///C:/Users/markl/coding/aetasscheduler/app/actions/schedule.ts) to fetch schedule data and initialize weeks.
-* Enabled **Start blank** and **Copy from previous week** creation strategies. **Auto-rotate** was removed from UI selection.
-* Created dialog form in [components/NewScheduleDialog.tsx](file:///C:/Users/markl/coding/aetasscheduler/components/NewScheduleDialog.tsx) aligning start dates to Mondays.
-* Formatted week range headers using `formatWeekRange` in [lib/utils.ts](file:///C:/Users/markl/coding/aetasscheduler/lib/utils.ts) to handle month and year boundaries correctly (e.g. `June 29 – July 5, 2026`).
-
-### 4. Responsiveness & UI/UX Polish
-* Built [components/ResponsiveLayoutShell.tsx](file:///C:/Users/markl/coding/aetasscheduler/components/ResponsiveLayoutShell.tsx):
-  * **Desktop:** Shows a persistent left navigation sidebar.
-  * **Mobile:** Collapses the sidebar into a sliding drawer toggleable via a hamburger icon in the top header.
-* Modified week navigation controls to wrap on mobile viewports.
-* Added `pb-36` to the main container so the last grid row can be scrolled above the floating banner.
-
-*Note: The project builds successfully with `npm run build` with **0 TypeScript and 0 ESLint errors**.*
+### Key Tech Stack
+*   **Framework**: Next.js 14 (App Router, Server Actions, API routes)
+*   **Database**: Supabase (PostgreSQL)
+*   **ORM**: Prisma 7 (with engine-less pg-pool adapter)
+*   **State Management**: Zustand
+*   **Styling**: Tailwind CSS + Custom Dark Navy/Glassmorphic Palette
+*   **UI Primitives**: `@base-ui/react` unstyled headless controls
+*   **Drag & Drop**: `@dnd-kit/core`
+*   **PDF Exports**: `@react-pdf/renderer`
 
 ---
 
-## 📂 Key File Map
-* **Database Configuration:** [prisma/schema.prisma](file:///C:/Users/markl/coding/aetasscheduler/prisma/schema.prisma) | [prisma.config.ts](file:///C:/Users/markl/coding/aetasscheduler/prisma.config.ts)
-* **Zustand Store:** [store/useScheduleStore.ts](file:///C:/Users/markl/coding/aetasscheduler/store/useScheduleStore.ts)
-* **Server Actions:** [app/actions/schedule.ts](file:///C:/Users/markl/coding/aetasscheduler/app/actions/schedule.ts)
-* **Components:**
-  * Schedule Grid: [components/ScheduleGrid.tsx](file:///C:/Users/markl/coding/aetasscheduler/components/ScheduleGrid.tsx)
-  * New Week Dialog: [components/NewScheduleDialog.tsx](file:///C:/Users/markl/coding/aetasscheduler/components/NewScheduleDialog.tsx)
-  * Layout Shell: [components/ResponsiveLayoutShell.tsx](file:///C:/Users/markl/coding/aetasscheduler/components/ResponsiveLayoutShell.tsx) | [components/Sidebar.tsx](file:///C:/Users/markl/coding/aetasscheduler/components/Sidebar.tsx)
-  * Changes Banner: [components/UnsavedChangesBanner.tsx](file:///C:/Users/markl/coding/aetasscheduler/components/UnsavedChangesBanner.tsx)
+## ⚡ Current Application State (Completed Features)
+
+All core requirements and advanced scheduling rule phases are implemented, fully debugged, and compile with zero errors:
+
+### 1. Advanced Constraints & Validation Engine
+Located in [schedulingValidation.ts](aetasscheduler/lib/schedulingValidation.ts):
+*   **Rest Periods**: Validates a hard minimum 7-hour rest (error blocks save) and an 8-hour recommended rest (warning banner) between consecutive shifts.
+*   **Weekly caps**: Validates a max of 6 consecutive workdays and a max of 5 workdays in a single Monday–Sunday week. (Fixed-schedule employees are automatically exempt).
+*   **Gender-Aware Night Shifts**: Team Zamboanga night shifts containing a female employee must have at least one other scheduled companion of any gender. (Team Alabang is exempt).
+*   **Mentorship Rule**: Mentor-requiring employees cannot be scheduled solo. They require an experienced employee or their specific assigned mentor scheduled alongside them.
+*   **Shift Overlap Check**: Custom shift type additions and edits enforce a 1-hour overlap configuration validation to support handovers.
+
+### 2. Smart Rotation & Resolution Engine
+Located in [schedule.ts](aetasscheduler/app/actions/schedule.ts):
+*   **Bi-Weekly Rotation**: Automatically cycles rotating shift types every 14 days.
+*   **Auto-Resolution**: Sweeps proposed rotation schedules up to 5 times to resolve gender/mentor violations by swapping in eligible and available companions.
+*   **Summary Dialog**: Displays a status screen after generation showing: *Rotated*, *Resolved*, *Skipped*, and *Flagged* categories.
+
+### 3. Drag & Drop schedule editing
+Located in [ScheduleGrid.tsx](aetasscheduler/components/ScheduleGrid.tsx):
+*   Implemented using `@dnd-kit/core`.
+*   Displays real-time visual highlight guides (green for valid target, red for invalid).
+*   Evaluates constraint validations on drop, displaying toast errors and snapping invalid drops back.
+
+### 4. Emergency Leave & Replacement Suggestion
+*   **Emergency Leave**: Admin can immediately mark an employee on leave (bypassing normal workday limits to handle emergencies).
+*   **Replacements Finder**: Automatically scans and ranks eligible replacement candidates by checking availability, rest limits, and workday caps.
+
+### 5. Customizable Job Roles
+Located in [job-role.ts](aetasscheduler/app/actions/job-role.ts):
+*   Admin Settings screen supports CRUD operations on job roles.
+*   Updating/deleting job roles updates or safe-reassigns employees (e.g. mapping to `OTHER` on deletion) in a single database transaction.
+
+### 6. Excel-Matched PDF Export
+*   Exposes a print-ready PDF endpoint in [route.tsx](aetasscheduler/app/api/export-pdf/route.tsx) generating separate Alabang/Zamboanga tables and shift legends.
 
 ---
 
-## 🔮 Next Phase: Step 6 (Employee Management CRUD)
+## 💻 Syncing Context on a New Device (Antigravity CLI Setup)
 
-When resuming the next session, immediately pick up with **Step 6**:
-1. Create employee management page at `app/employees/page.tsx` (the Sidebar already links to `/employees`).
-2. Add server actions in a new file `app/actions/employee.ts` for:
-   * Fetching all employees.
-   * Creating an employee (Name, Employee ID, Team, status `isActive: true`).
-   * Editing employee details.
-   * Deactivating an employee (setting `isActive: false` as a soft delete to protect historical schedule week references).
-3. Design the Employee CRUD UI:
-   * Grid/table listing employees with names, team badges, active status toggle, and edit buttons.
-   * Dialog popups (like `NewScheduleDialog`) for Add and Edit actions using shadcn/Base UI components.
+If you clone the codebase or resume work on a different computer using the **Antigravity CLI**, follow these exact setup steps to configure your environment:
+
+### Step 1: Install packages
+Install the locked dependencies:
+```bash
+npm install
+```
+
+### Step 2: Configure Environment Variables
+You must create a `.env` file in the root directory. Copy the sample:
+```bash
+cp .env.sample .env
+```
+Fill in the values using your Supabase Postgres connection strings and API keys:
+*   `DATABASE_URL`: Transaction pooler URL (Port 6543) with `?pgbouncer=true`.
+*   `DIRECT_URL`: Direct database connection URL (Port 5432) for running migrations.
+*   `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Supabase authentication parameters.
+
+### Step 3: Sync Schema & Generate Client (CRITICAL)
+You **must** generate the local Prisma client on your new machine so TypeScript understands the database model typings:
+```bash
+npx prisma generate
+```
+*Note: If you are connecting to your existing Supabase database (which already has data and tables), **skip** the database migration and seeding commands below. If configuring a brand-new database instance, run them:*
+```bash
+npx prisma migrate dev
+npm run seed
+```
+
+### Step 4: Add Auth User (Optional)
+*Skip this step if using your existing user credentials.* If setting up a brand-new Supabase project, make sure to create an operator login user (e.g., `admin@aetasglobal.com`) inside your **Supabase Dashboard** -> **Authentication** -> **Users** panel, as the local server's middleware redirects unauthenticated requests to `/login`.
+
+---
+
+## 🛠️ How to Add Changes
+
+When you want to implement new features or modify existing code:
+
+### 1. Database Schema Changes
+*   Open [schema.prisma](aetasscheduler/prisma/schema.prisma) and add or modify the models.
+*   Apply changes and generate client bindings:
+    ```bash
+    npx prisma migrate dev --name <migration_name>
+    ```
+*   Update the database seeds in [seed.ts](aetasscheduler/prisma/seed.ts) to match the changes.
+
+### 2. Modifying Scheduling Logic or Validations
+*   To edit constraint logic (e.g., changing rest hours or introducing team exemptions), edit the validation rules in [schedulingValidation.ts](aetasscheduler/lib/schedulingValidation.ts).
+*   To edit schedule generation, bi-weekly cycles, or resolution passes, edit the actions in [schedule.ts](aetasscheduler/app/actions/schedule.ts).
+
+### 3. Modifying state properties
+*   Global frontend schedule state, queues, and drag states are managed in [useScheduleStore.ts](aetasscheduler/store/useScheduleStore.ts). Modify this store to store new client-side schedule variables.
+
+### 4. Running Verification Checks
+Always run typescript checks and production builds to ensure zero compile errors before pushing:
+```bash
+npm run build
+```
+
+---
+
+## 📂 Key File Map Reference
+*   **Database Config**: [schema.prisma](aetasscheduler/prisma/schema.prisma) | [seed.ts](aetasscheduler/prisma/seed.ts)
+*   **Validation Rules**: [schedulingValidation.ts](aetasscheduler/lib/schedulingValidation.ts)
+*   **Server Actions**: [schedule.ts](aetasscheduler/app/actions/schedule.ts) | [job-role.ts](aetasscheduler/app/actions/job-role.ts) | [employee.ts](aetasscheduler/app/actions/employee.ts)
+*   **State Store**: [useScheduleStore.ts](aetasscheduler/store/useScheduleStore.ts)
+*   **Layout & Main Grid**: [ScheduleGrid.tsx](aetasscheduler/components/ScheduleGrid.tsx) | [ResponsiveLayoutShell.tsx](aetasscheduler/components/ResponsiveLayoutShell.tsx)
+*   **Settings Screen**: [settings/page.tsx](aetasscheduler/app/settings/page.tsx)
+*   **Roster Screen**: [employees/page.tsx](aetasscheduler/app/employees/page.tsx)
