@@ -729,3 +729,10 @@ export async function assignReplacement(
     create: { employeeId: candidateId, scheduleWeekId: weekId, dayOfWeek, shiftTypeId },
   });
 }
+
+export async function runScheduleValidation(
+  weekId: string,
+  updates: Array<{ employeeId: string; dayOfWeek: DayOfWeek; shiftTypeId: string | null }>
+): Promise<{ success: boolean; errors: string[]; warnings: string[] }> {
+  return await validateSchedule(weekId, updates);
+}
