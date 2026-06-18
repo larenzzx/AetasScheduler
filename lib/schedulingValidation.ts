@@ -388,7 +388,7 @@ export async function validateShiftCoverage(proposedShift?: {
   });
 
   // 2. Merge proposed shift type (if any)
-  let shiftTypes = [...dbShiftTypes];
+  const shiftTypes = [...dbShiftTypes];
   if (proposedShift) {
     const existingIdx = proposedShift.id ? shiftTypes.findIndex((st) => st.id === proposedShift.id) : -1;
     if (existingIdx !== -1) {
@@ -433,7 +433,7 @@ export async function validateShiftCoverage(proposedShift?: {
           startMin,
           endMin: endMin <= startMin ? endMin + 1440 : endMin,
         };
-      } catch (e) {
+      } catch {
         return null;
       }
     })

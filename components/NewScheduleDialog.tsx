@@ -245,7 +245,7 @@ export default function NewScheduleDialog() {
             </label>
             <Select 
               value={strategy} 
-              onValueChange={(val) => { if (val) setStrategy(val as any); }}
+              onValueChange={(val) => { if (val) setStrategy(val as 'blank' | 'copy' | 'generate'); }}
             >
               <SelectTrigger className="border-slate-200 text-slate-800">
                 <SelectValue placeholder="Select Options" />

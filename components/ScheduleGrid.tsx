@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { DndContext, useDraggable, useDroppable } from '@dnd-kit/core';
+import { DndContext, useDraggable, useDroppable, DragStartEvent, DragEndEvent } from '@dnd-kit/core';
 
 // Helper to determine optimal text color based on background brightness
 function getContrastColor(hexColor: string): string {
@@ -260,7 +260,7 @@ export default function ScheduleGrid({ team }: ScheduleGridProps) {
     return srcRestOk && dstRestOk;
   };
 
-  const handleDragStart = (event: any) => {
+  const handleDragStart = (event: DragStartEvent) => {
     const activeId = event.active.id as string;
     const parts = activeId.split('_');
     if (parts.length === 3) {
@@ -271,7 +271,7 @@ export default function ScheduleGrid({ team }: ScheduleGridProps) {
     }
   };
 
-  const handleDragEnd = async (event: any) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     setActiveDragCell(null);
     const { active, over } = event;
     if (!over) return;
