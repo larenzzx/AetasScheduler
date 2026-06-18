@@ -5,9 +5,23 @@ import { revalidatePath } from 'next/cache';
 
 export async function getJobRoles() {
   try {
-    return await prisma.jobRole.findMany({
+    let roles = await prisma.jobRole.findMany({
       orderBy: { name: 'asc' },
     });
+
+    if (roles.length === 0) {
+      const defaults = ['SOC_OPERATIONS', 'DESIGNER', 'IT_SUPPORT', 'OTHER'];
+      await prisma.jobRole.createMany({
+        data: defaults.map((name) => ({ name })),
+        skipDuplicates: true,
+      });
+
+      roles = await prisma.jobRole.findMany({
+        orderBy: { name: 'asc' },
+      });
+    }
+
+    return roles;
   } catch (error) {
     console.error('Error fetching job roles:', error);
     return [];
