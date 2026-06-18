@@ -6,7 +6,8 @@ import {
   createShiftType, 
   updateShiftType, 
   deleteShiftType, 
-  updateShiftSortOrders 
+  updateShiftSortOrders,
+  getShiftCoverageWarnings
 } from '@/app/actions/shift-type';
 import { ShiftType } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -53,6 +54,7 @@ export default function ShiftTypesPage() {
   const [shiftTypes, setShiftTypes] = useState<ShiftType[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [coverageWarnings, setCoverageWarnings] = useState<string[]>([]);
 
   // Add Shift states
   const [addOpen, setAddOpen] = useState(false);
@@ -85,6 +87,8 @@ export default function ShiftTypesPage() {
     try {
       const data = await getShiftTypes();
       setShiftTypes(data);
+      const warnings = await getShiftCoverageWarnings();
+      setCoverageWarnings(warnings);
     } catch (error) {
       console.error('Failed to load shift types:', error);
       toast.error('Failed to load shift types.');
@@ -123,6 +127,9 @@ export default function ShiftTypesPage() {
 
       if (response.success) {
         toast.success(`Shift type "${newName.toUpperCase()}" created successfully!`);
+        if (response.warnings && response.warnings.length > 0) {
+          response.warnings.forEach(w => toast.warning(w, { duration: 6000 }));
+        }
         setAddOpen(false);
         // Reset state
         setNewName('');
@@ -182,6 +189,9 @@ export default function ShiftTypesPage() {
 
       if (response.success) {
         toast.success(`Shift type details updated successfully!`);
+        if (response.warnings && response.warnings.length > 0) {
+          response.warnings.forEach(w => toast.warning(w, { duration: 6000 }));
+        }
         setEditOpen(false);
         loadShifts();
       } else {
@@ -208,6 +218,9 @@ export default function ShiftTypesPage() {
       const response = await deleteShiftType(shiftToDelete.id);
       if (response.success) {
         toast.success(`Shift type "${shiftToDelete.name}" deleted successfully.`);
+        if (response.warnings && response.warnings.length > 0) {
+          response.warnings.forEach(w => toast.warning(w, { duration: 6000 }));
+        }
         loadShifts();
         setDeleteOpen(false);
         setShiftToDelete(null);
@@ -434,6 +447,28 @@ export default function ShiftTypesPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Coverage Warnings Alert Banner */}
+      {coverageWarnings.length > 0 && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5 animate-pulse" />
+            <div className="space-y-1">
+              <h4 className="text-sm font-semibold text-amber-900 flex items-center gap-1.5">
+                Shift Coverage Gap Warnings
+              </h4>
+              <p className="text-xs text-amber-700 leading-relaxed">
+                The current shift configurations do not cover a complete 24-hour cycle with the required 1-hour overlap. This may cause scheduling coverage gaps:
+              </p>
+              <ul className="list-disc list-inside text-xs text-amber-700 mt-2 space-y-1 font-medium pl-1">
+                {coverageWarnings.map((w, idx) => (
+                  <li key={idx}>{w}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Toolbar */}
       <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between gap-4">

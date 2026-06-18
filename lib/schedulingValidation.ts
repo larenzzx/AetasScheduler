@@ -373,3 +373,100 @@ export async function validateSchedule(
     warnings,
   };
 }
+
+export async function validateShiftCoverage(proposedShift?: {
+  id?: string;
+  name: string;
+  startTime: string | null;
+  endTime: string | null;
+}): Promise<string[]> {
+  const warnings: string[] = [];
+
+  // 1. Fetch current shift types from database
+  const dbShiftTypes = await prisma.shiftType.findMany({
+    orderBy: { sortOrder: 'asc' },
+  });
+
+  // 2. Merge proposed shift type (if any)
+  let shiftTypes = [...dbShiftTypes];
+  if (proposedShift) {
+    const existingIdx = proposedShift.id ? shiftTypes.findIndex((st) => st.id === proposedShift.id) : -1;
+    if (existingIdx !== -1) {
+      // Update existing
+      shiftTypes[existingIdx] = {
+        ...shiftTypes[existingIdx],
+        name: proposedShift.name.trim().toUpperCase(),
+        startTime: proposedShift.startTime,
+        endTime: proposedShift.endTime,
+      };
+    } else {
+      // Create new
+      shiftTypes.push({
+        id: 'proposed-id',
+        name: proposedShift.name.trim().toUpperCase(),
+        startTime: proposedShift.startTime,
+        endTime: proposedShift.endTime,
+        colorHex: '#000000',
+        sortOrder: 9999,
+        isNightShift: false,
+        daysOfWeek: ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'],
+      });
+    }
+  }
+
+  // 3. Get rules config
+  const rulesConfig = await prisma.schedulingRuleConfig.findFirst();
+  const overlapHours = rulesConfig?.shiftOverlapHours ?? 1;
+  const targetOverlapMin = overlapHours * 60;
+
+  // 4. Filter to timed shifts
+  const timedShifts = shiftTypes
+    .filter((st) => st.startTime !== null && st.endTime !== null && st.name !== 'LEAVE')
+    .map((st) => {
+      try {
+        const startParts = parseTimeString(st.startTime!);
+        const endParts = parseTimeString(st.endTime!);
+        const startMin = startParts.hours * 60 + startParts.minutes;
+        const endMin = endParts.hours * 60 + endParts.minutes;
+        return {
+          name: st.name,
+          startMin,
+          endMin: endMin <= startMin ? endMin + 1440 : endMin,
+        };
+      } catch (e) {
+        return null;
+      }
+    })
+    .filter((st): st is NonNullable<typeof st> => st !== null);
+
+  if (timedShifts.length === 0) {
+    return warnings;
+  }
+
+  // Sort by start time
+  timedShifts.sort((a, b) => a.startMin - b.startMin);
+
+  const n = timedShifts.length;
+
+  for (let i = 0; i < n; i++) {
+    const current = timedShifts[i];
+    const next = timedShifts[(i + 1) % n];
+
+    let overlapMin = 0;
+    if (i === n - 1) {
+      // Wrap around
+      overlapMin = current.endMin - (next.startMin + 1440);
+    } else {
+      overlapMin = current.endMin - next.startMin;
+    }
+
+    if (overlapMin < targetOverlapMin) {
+      warnings.push(
+        `Coverage gap detected between ${current.name} and ${next.name}. Overlap is only ${(Math.max(0, overlapMin) / 60).toFixed(1)} hours (minimum ${overlapHours} hour required).`
+      );
+    }
+  }
+
+  return warnings;
+}
+
