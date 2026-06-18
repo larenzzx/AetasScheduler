@@ -27,7 +27,7 @@ export default function NewScheduleDialog() {
   // Form States
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [teamSelection, setTeamSelection] = useState<'ALABANG' | 'ZAMBOANGA' | 'BOTH'>('BOTH');
-  const [strategy, setStrategy] = useState<'blank' | 'copy'>('copy');
+  const [strategy, setStrategy] = useState<'blank' | 'copy' | 'generate'>('generate');
 
   const handleCreate = async () => {
     setLoading(true);
@@ -125,12 +125,16 @@ export default function NewScheduleDialog() {
             </label>
             <Select 
               value={strategy} 
-              onValueChange={(val) => { if (val) setStrategy(val); }}
+              onValueChange={(val) => { if (val) setStrategy(val as any); }}
             >
               <SelectTrigger className="border-slate-200 text-slate-800">
                 <SelectValue placeholder="Select Options" />
               </SelectTrigger>
               <SelectContent className="bg-white border-slate-200">
+                <SelectItem value="generate" className="hover:bg-slate-50">
+                  <span className="font-medium">Auto-Generate (Base Shifts & Rotation)</span>
+                  <span className="block text-[10px] text-slate-400 -mt-0.5">Applies base shifts & rotation rules automatically</span>
+                </SelectItem>
                 <SelectItem value="copy" className="hover:bg-slate-50">
                   <span className="font-medium">Copy from previous week</span>
                   <span className="block text-[10px] text-slate-400 -mt-0.5">Duplicates previous week&apos;s shifts exactly</span>

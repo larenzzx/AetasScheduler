@@ -30,33 +30,37 @@ enum DayOfWeek {
 }
 
 model Employee {
-  id                String          @id @default(cuid())
-  name              String
-  employeeId        String          @unique
-  team              Team
-  isActive          Boolean         @default(true)
-  gender            Gender          @default(MALE)
-  employmentType    String          @default("SOC_OPERATIONS")
-  environmentAccess String[]        @default([])
-  requiresMentor    Boolean         @default(false)
-  isFixedSchedule   Boolean         @default(false)
-  mentorId          String?
-  mentor            Employee?       @relation("MentorMentees", fields: [mentorId], references: [id])
-  mentees           Employee[]      @relation("MentorMentees")
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-  schedules         ScheduleEntry[]
+  id                 String          @id @default(cuid())
+  name               String
+  employeeId         String          @unique
+  team               Team
+  isActive           Boolean         @default(true)
+  gender             Gender          @default(MALE)
+  employmentType     String          @default("SOC_OPERATIONS")
+  environmentAccess  String[]        @default([])
+  requiresMentor     Boolean         @default(false)
+  isFixedSchedule    Boolean         @default(false)
+  mentorId           String?
+  mentor             Employee?       @relation("MentorMentees", fields: [mentorId], references: [id])
+  mentees            Employee[]      @relation("MentorMentees")
+  currentShiftTypeId String?
+  currentShiftType   ShiftType?      @relation("EmployeeBaseShift", fields: [currentShiftTypeId], references: [id], onDelete: SetNull)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  schedules          ScheduleEntry[]
 }
 
 model ShiftType {
-  id            String          @id @default(cuid())
-  name          String          @unique
-  startTime     String?         // e.g. "08:00 AM" or "6:00 AM", nullable for LEAVE / DAY-OFF / ADJUST
-  endTime       String?         // e.g. "05:00 PM" or "3:00 PM", nullable
-  colorHex      String          // e.g. "#808080" for gray
-  sortOrder     Int             @default(0)
-  isNightShift  Boolean         @default(false)
-  schedules     ScheduleEntry[]
+  id                 String          @id @default(cuid())
+  name               String          @unique
+  startTime          String?         // e.g. "08:00 AM" or "6:00 AM", nullable for LEAVE / DAY-OFF / ADJUST
+  endTime            String?         // e.g. "05:00 PM" or "3:00 PM", nullable
+  colorHex           String          // e.g. "#808080" for gray
+  sortOrder          Int             @default(0)
+  isNightShift       Boolean         @default(false)
+  daysOfWeek         DayOfWeek[]     @default([MON, TUE, WED, THU, FRI])
+  schedules          ScheduleEntry[]
+  baseShiftEmployees Employee[]      @relation("EmployeeBaseShift")
 }
 
 model ScheduleWeek {
@@ -97,4 +101,11 @@ model SchedulingRuleConfig {
   shiftOverlapHours     Int      @default(1)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
+}
+
+model TeamSettings {
+  team            Team     @id
+  rotationEnabled Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }

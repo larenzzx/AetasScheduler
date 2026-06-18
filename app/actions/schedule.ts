@@ -86,7 +86,7 @@ export async function getScheduleData(
 export async function createScheduleWeek(
   weekStartDateStr: string,
   team: Team,
-  option: 'blank' | 'copy'
+  option: 'blank' | 'copy' | 'generate'
 ): Promise<ScheduleDataResponse> {
   const weekStart = new Date(`${weekStartDateStr}T00:00:00.000Z`);
   const weekEnd = new Date(`${weekStartDateStr}T23:59:59.999Z`);
@@ -118,6 +118,12 @@ export async function createScheduleWeek(
   });
   employees.sort((a, b) => (parseInt(a.employeeId, 10) || 0) - (parseInt(b.employeeId, 10) || 0));
 
+  // 3. Fetch all shift types
+  const shiftTypes = await prisma.shiftType.findMany({
+    orderBy: {
+      sortOrder: 'asc',
+    },
+  });
 
   const days: DayOfWeek[] = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
@@ -167,6 +173,91 @@ export async function createScheduleWeek(
         data: entriesToCreate,
       });
     }
+  } else if (option === 'blank') {
+    const entriesToCreate = [];
+
+    for (const employee of employees) {
+      for (const day of days) {
+        entriesToCreate.push({
+          employeeId: employee.id,
+          scheduleWeekId: week.id,
+          dayOfWeek: day,
+          shiftTypeId: null,
+        });
+      }
+    }
+
+    await prisma.scheduleEntry.deleteMany({
+      where: { scheduleWeekId: week.id },
+    });
+
+    await prisma.scheduleEntry.createMany({
+      data: entriesToCreate,
+    });
+  } else if (option === 'generate') {
+    // Fetch team settings for rotation
+    const teamSettings = await prisma.teamSettings.findUnique({
+      where: { team },
+    });
+    const rotationEnabled = teamSettings?.rotationEnabled ?? true;
+
+    // Find the earliest scheduled week for this team to calculate the cycle index
+    const earliestWeek = await prisma.scheduleWeek.findFirst({
+      where: { team },
+      orderBy: { weekStartDate: 'asc' },
+    });
+
+    const earliestDate = earliestWeek ? earliestWeek.weekStartDate : weekStart;
+    const msDiff = weekStart.getTime() - earliestDate.getTime();
+    const weeksDiff = Math.round(msDiff / (7 * 24 * 60 * 60 * 1000));
+    const periodIndex = Math.max(0, Math.floor(weeksDiff / 2));
+
+    const rotationPathNames = ['DAY SHIFT', 'MID SHIFT', 'ADJUST SHIFT', 'NIGHT SHIFT'];
+    const rotationPath = rotationPathNames
+      .map((name) => shiftTypes.find((st) => st.name === name))
+      .filter((st): st is NonNullable<typeof st> => !!st);
+
+    const entriesToCreate = [];
+
+    for (const employee of employees) {
+      const baseShiftType = employee.currentShiftTypeId
+        ? shiftTypes.find((st) => st.id === employee.currentShiftTypeId)
+        : null;
+
+      for (const day of days) {
+        let shiftTypeId: string | null = null;
+
+        if (baseShiftType) {
+          let finalShiftType = baseShiftType;
+
+          if (!employee.isFixedSchedule && rotationEnabled) {
+            const baseIdx = rotationPath.findIndex((st) => st.id === baseShiftType.id);
+            if (baseIdx !== -1) {
+              finalShiftType = rotationPath[(baseIdx + periodIndex) % rotationPath.length];
+            }
+          }
+
+          if (finalShiftType.daysOfWeek.includes(day)) {
+            shiftTypeId = finalShiftType.id;
+          }
+        }
+
+        entriesToCreate.push({
+          employeeId: employee.id,
+          scheduleWeekId: week.id,
+          dayOfWeek: day,
+          shiftTypeId,
+        });
+      }
+    }
+
+    await prisma.scheduleEntry.deleteMany({
+      where: { scheduleWeekId: week.id },
+    });
+
+    await prisma.scheduleEntry.createMany({
+      data: entriesToCreate,
+    });
   }
 
   // Reload the newly created schedule
@@ -237,4 +328,16 @@ export async function deleteScheduleWeek(
     console.error('Failed to delete schedule week:', error);
     throw new Error('Failed to delete schedule week.');
   }
+}
+
+export async function getTeamSettings(): Promise<Array<{ team: Team; rotationEnabled: boolean }>> {
+  return await prisma.teamSettings.findMany();
+}
+
+export async function updateTeamSettings(team: Team, rotationEnabled: boolean): Promise<void> {
+  await prisma.teamSettings.upsert({
+    where: { team },
+    update: { rotationEnabled },
+    create: { team, rotationEnabled },
+  });
 }

@@ -33,6 +33,7 @@ export async function createEmployee(data: {
   requiresMentor?: boolean;
   isFixedSchedule?: boolean;
   mentorId?: string | null;
+  currentShiftTypeId?: string | null;
 }) {
   try {
     const employee = await prisma.employee.create({
@@ -46,6 +47,7 @@ export async function createEmployee(data: {
         requiresMentor: data.requiresMentor ?? false,
         isFixedSchedule: data.isFixedSchedule ?? false,
         mentorId: data.mentorId ?? null,
+        currentShiftTypeId: data.currentShiftTypeId ?? null,
         isActive: true,
       },
     });
@@ -76,6 +78,7 @@ export async function updateEmployee(
     requiresMentor?: boolean;
     isFixedSchedule?: boolean;
     mentorId?: string | null;
+    currentShiftTypeId?: string | null;
   }
 ) {
   try {
@@ -92,6 +95,7 @@ export async function updateEmployee(
         requiresMentor: data.requiresMentor,
         isFixedSchedule: data.isFixedSchedule,
         mentorId: data.mentorId,
+        currentShiftTypeId: data.currentShiftTypeId,
       },
     });
     revalidatePath('/employees');

@@ -5,9 +5,11 @@ import {
   getEmployees, 
   createEmployee, 
   updateEmployee, 
-  toggleEmployeeStatus 
+  toggleEmployeeStatus,
+  getActiveShiftTypes
 } from '@/app/actions/employee';
-import { Employee, Team } from '@/types';
+import { Employee, Team, ShiftType } from '@/types';
+import { Gender } from '@prisma/client';
 import { Button } from '@/components/ui/button';
 import { 
   Dialog, 
@@ -49,6 +51,8 @@ export default function EmployeesPage() {
   const [teamFilter, setTeamFilter] = useState<'ALL' | 'ALABANG' | 'ZAMBOANGA'>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
 
+  const [shiftTypes, setShiftTypes] = useState<ShiftType[]>([]);
+
   // Add Employee states
   const [addOpen, setAddOpen] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
@@ -58,6 +62,9 @@ export default function EmployeesPage() {
   const [newTeam, setNewTeam] = useState<Team>(Team.ALABANG);
   const [newRequiresMentor, setNewRequiresMentor] = useState(false);
   const [newMentorId, setNewMentorId] = useState<string>('NONE');
+  const [newGender, setNewGender] = useState<Gender>('MALE');
+  const [newEmploymentType, setNewEmploymentType] = useState<string>('SOC_OPERATIONS');
+  const [newCurrentShiftTypeId, setNewCurrentShiftTypeId] = useState<string>('NONE');
 
   // Edit Employee states
   const [editOpen, setEditOpen] = useState(false);
@@ -70,6 +77,9 @@ export default function EmployeesPage() {
   const [editIsActive, setEditIsActive] = useState(true);
   const [editRequiresMentor, setEditRequiresMentor] = useState(false);
   const [editMentorId, setEditMentorId] = useState<string>('NONE');
+  const [editGender, setEditGender] = useState<Gender>('MALE');
+  const [editEmploymentType, setEditEmploymentType] = useState<string>('SOC_OPERATIONS');
+  const [editCurrentShiftTypeId, setEditCurrentShiftTypeId] = useState<string>('NONE');
 
   // Deactivate confirmation modal states
   const [deactivateOpen, setDeactivateOpen] = useState(false);
@@ -79,8 +89,12 @@ export default function EmployeesPage() {
   // Load initial data
   const loadData = useCallback(async () => {
     try {
-      const emps = await getEmployees();
+      const [emps, shifts] = await Promise.all([
+        getEmployees(),
+        getActiveShiftTypes()
+      ]);
       setEmployees(emps);
+      setShiftTypes(shifts);
     } catch (error) {
       console.error('Failed to load employee data:', error);
       toast.error('Failed to load employee list.');
@@ -116,6 +130,9 @@ export default function EmployeesPage() {
         team: newTeam,
         requiresMentor: newRequiresMentor,
         mentorId: newMentorId === 'NONE' ? null : newMentorId,
+        gender: newGender,
+        employmentType: newEmploymentType,
+        currentShiftTypeId: newCurrentShiftTypeId === 'NONE' ? null : newCurrentShiftTypeId,
       });
 
       if (response.success) {
@@ -127,6 +144,9 @@ export default function EmployeesPage() {
         setNewTeam(Team.ALABANG);
         setNewRequiresMentor(false);
         setNewMentorId('NONE');
+        setNewGender('MALE');
+        setNewEmploymentType('SOC_OPERATIONS');
+        setNewCurrentShiftTypeId('NONE');
         // Reload list
         loadData();
       } else {
@@ -149,6 +169,9 @@ export default function EmployeesPage() {
     setEditIsActive(employee.isActive);
     setEditRequiresMentor(employee.requiresMentor || false);
     setEditMentorId(employee.mentorId || 'NONE');
+    setEditGender(employee.gender || 'MALE');
+    setEditEmploymentType(employee.employmentType || 'SOC_OPERATIONS');
+    setEditCurrentShiftTypeId(employee.currentShiftTypeId || 'NONE');
     setEditError(null);
     setEditOpen(true);
   };
@@ -178,6 +201,9 @@ export default function EmployeesPage() {
         isActive: editIsActive,
         requiresMentor: editRequiresMentor,
         mentorId: editMentorId === 'NONE' ? null : editMentorId,
+        gender: editGender,
+        employmentType: editEmploymentType,
+        currentShiftTypeId: editCurrentShiftTypeId === 'NONE' ? null : editCurrentShiftTypeId,
       });
 
       if (response.success) {
@@ -345,6 +371,69 @@ export default function EmployeesPage() {
                     <SelectContent className="bg-white border-slate-200">
                       <SelectItem value="ALABANG" className="hover:bg-slate-50">Team Alabang</SelectItem>
                       <SelectItem value="ZAMBOANGA" className="hover:bg-slate-50">Team Zamboanga</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Gender */}
+                <div className="grid gap-2">
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Gender
+                  </label>
+                  <Select 
+                    value={newGender} 
+                    onValueChange={(val) => { if (val) setNewGender(val as Gender); }}
+                  >
+                    <SelectTrigger className="border-slate-200 text-slate-800 w-full">
+                      <SelectValue placeholder="Select Gender" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border-slate-200">
+                      <SelectItem value="MALE" className="hover:bg-slate-50">Male</SelectItem>
+                      <SelectItem value="FEMALE" className="hover:bg-slate-50">Female</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Job Role / Employment Type */}
+                <div className="grid gap-2">
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Job Role / Employment Type
+                  </label>
+                  <Select 
+                    value={newEmploymentType} 
+                    onValueChange={(val) => { if (val) setNewEmploymentType(val); }}
+                  >
+                    <SelectTrigger className="border-slate-200 text-slate-800 w-full">
+                      <SelectValue placeholder="Select Role" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border-slate-200">
+                      <SelectItem value="SOC_OPERATIONS" className="hover:bg-slate-50">SOC Operations</SelectItem>
+                      <SelectItem value="DESIGNER" className="hover:bg-slate-50">Designer</SelectItem>
+                      <SelectItem value="IT_SUPPORT" className="hover:bg-slate-50">IT Support</SelectItem>
+                      <SelectItem value="OTHER" className="hover:bg-slate-50">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Base Shift */}
+                <div className="grid gap-2">
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Base Shift Type
+                  </label>
+                  <Select 
+                    value={newCurrentShiftTypeId} 
+                    onValueChange={(val) => { if (val) setNewCurrentShiftTypeId(val); }}
+                  >
+                    <SelectTrigger className="border-slate-200 text-slate-800 w-full">
+                      <SelectValue placeholder="Select Base Shift" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border-slate-200">
+                      <SelectItem value="NONE" className="hover:bg-slate-50">No Base Shift (Default)</SelectItem>
+                      {shiftTypes.map((st) => (
+                        <SelectItem key={st.id} value={st.id} className="hover:bg-slate-50">
+                          {st.name} ({st.startTime} - {st.endTime})
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -767,6 +856,69 @@ export default function EmployeesPage() {
                   <SelectContent className="bg-white border-slate-200">
                     <SelectItem value="ALABANG" className="hover:bg-slate-50">Team Alabang</SelectItem>
                     <SelectItem value="ZAMBOANGA" className="hover:bg-slate-50">Team Zamboanga</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Gender */}
+              <div className="grid gap-2">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Gender
+                </label>
+                <Select 
+                  value={editGender} 
+                  onValueChange={(val) => { if (val) setEditGender(val as Gender); }}
+                >
+                  <SelectTrigger className="border-slate-200 text-slate-800 w-full">
+                    <SelectValue placeholder="Select Gender" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border-slate-200">
+                    <SelectItem value="MALE" className="hover:bg-slate-50">Male</SelectItem>
+                    <SelectItem value="FEMALE" className="hover:bg-slate-50">Female</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Job Role / Employment Type */}
+              <div className="grid gap-2">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Job Role / Employment Type
+                </label>
+                <Select 
+                  value={editEmploymentType} 
+                  onValueChange={(val) => { if (val) setEditEmploymentType(val); }}
+                >
+                  <SelectTrigger className="border-slate-200 text-slate-800 w-full">
+                    <SelectValue placeholder="Select Role" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border-slate-200">
+                    <SelectItem value="SOC_OPERATIONS" className="hover:bg-slate-50">SOC Operations</SelectItem>
+                    <SelectItem value="DESIGNER" className="hover:bg-slate-50">Designer</SelectItem>
+                    <SelectItem value="IT_SUPPORT" className="hover:bg-slate-50">IT Support</SelectItem>
+                    <SelectItem value="OTHER" className="hover:bg-slate-50">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Base Shift */}
+              <div className="grid gap-2">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Base Shift Type
+                </label>
+                <Select 
+                  value={editCurrentShiftTypeId} 
+                  onValueChange={(val) => { if (val) setEditCurrentShiftTypeId(val); }}
+                >
+                  <SelectTrigger className="border-slate-200 text-slate-800 w-full">
+                    <SelectValue placeholder="Select Base Shift" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border-slate-200">
+                    <SelectItem value="NONE" className="hover:bg-slate-50">No Base Shift (Default)</SelectItem>
+                    {shiftTypes.map((st) => (
+                      <SelectItem key={st.id} value={st.id} className="hover:bg-slate-50">
+                        {st.name} ({st.startTime} - {st.endTime})
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

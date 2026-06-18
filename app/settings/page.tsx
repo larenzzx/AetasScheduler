@@ -6,19 +6,39 @@ import { Button } from '@/components/ui/button';
 import { Settings, Building2, Calendar, Clock, RotateCw, Save, User, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { updateAccountDetails } from '@/app/actions/auth';
+import { getTeamSettings, updateTeamSettings } from '@/app/actions/schedule';
 
 export default function SettingsPage() {
   const { companyName, setCompanyName, currentUser, fetchCurrentUser } = useScheduleStore();
   const [accountLoading, setAccountLoading] = useState(false);
+  const [globalLoading, setGlobalLoading] = useState(false);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  const [alabangRotation, setAlabangRotation] = useState(true);
+  const [zamboangaRotation, setZamboangaRotation] = useState(true);
 
   useEffect(() => {
     fetchCurrentUser();
   }, [fetchCurrentUser]);
 
+  useEffect(() => {
+    async function loadTeamSettings() {
+      try {
+        const settings = await getTeamSettings();
+        const alabang = settings.find((s) => s.team === 'ALABANG');
+        const zamboanga = settings.find((s) => s.team === 'ZAMBOANGA');
+        if (alabang) setAlabangRotation(alabang.rotationEnabled);
+        if (zamboanga) setZamboangaRotation(zamboanga.rotationEnabled);
+      } catch (error) {
+        console.error('Failed to load team settings:', error);
+      }
+    }
+    loadTeamSettings();
+  }, []);
+
   // Handle Global Settings Submit
-  const handleSaveGlobal = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSaveGlobal = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const newCompanyName = formData.get('companyName') as string;
@@ -28,8 +48,20 @@ export default function SettingsPage() {
       return;
     }
 
-    setCompanyName(newCompanyName);
-    toast.success('Global settings saved successfully!');
+    setGlobalLoading(true);
+    try {
+      setCompanyName(newCompanyName);
+      await Promise.all([
+        updateTeamSettings('ALABANG', alabangRotation),
+        updateTeamSettings('ZAMBOANGA', zamboangaRotation),
+      ]);
+      toast.success('Global settings saved successfully!');
+    } catch (error) {
+      console.error('Failed to save global settings:', error);
+      toast.error('Failed to save settings.');
+    } finally {
+      setGlobalLoading(false);
+    }
   };
 
   // Handle Account Settings Submit
@@ -172,16 +204,71 @@ export default function SettingsPage() {
                 </div>
               </div>
             </div>
+
+            {/* Team Rotation Settings Card */}
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center gap-2.5">
+                <RotateCw className="h-4.5 w-4.5 text-slate-500" />
+                <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
+                  Team Auto-Rotation Toggles
+                </h2>
+              </div>
+              
+              <div className="p-6 space-y-6">
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Toggle schedule auto-rotation on or off per team. When disabled, schedule generation will keep employee shifts fixed to their assigned Base Shift instead of rotating them bi-weekly.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
+                  {/* Team Alabang Toggle */}
+                  <div className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50/50">
+                    <div className="space-y-0.5">
+                      <div className="text-sm font-bold text-slate-800">Team Alabang</div>
+                      <div className="text-[10px] text-slate-400">Enable bi-weekly rotation</div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={alabangRotation}
+                      onChange={(e) => setAlabangRotation(e.target.checked)}
+                      className="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500/20 cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Team Zamboanga Toggle */}
+                  <div className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50/50">
+                    <div className="space-y-0.5">
+                      <div className="text-sm font-bold text-slate-800">Team Zamboanga</div>
+                      <div className="text-[10px] text-slate-400">Enable bi-weekly rotation</div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={zamboangaRotation}
+                      onChange={(e) => setZamboangaRotation(e.target.checked)}
+                      className="h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500/20 cursor-pointer"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Submit Actions */}
           <div className="flex justify-end gap-3 pt-2">
             <Button
               type="submit"
+              disabled={globalLoading}
               className="h-10 px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-2"
             >
-              <Save className="h-4.5 w-4.5" />
-              Save Global Settings
+              {globalLoading ? (
+                <>
+                  <Loader2 className="h-4.5 w-4.5 animate-spin" />
+                  Saving Settings...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4.5 w-4.5" />
+                  Save Global Settings
+                </>
+              )}
             </Button>
           </div>
         </form>

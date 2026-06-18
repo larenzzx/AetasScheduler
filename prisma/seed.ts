@@ -89,6 +89,16 @@ async function main() {
     console.log('- SchedulingRuleConfig already exists');
   }
 
+  console.log('Seeding TeamSettings...');
+  for (const team of [Team.ALABANG, Team.ZAMBOANGA]) {
+    await prisma.teamSettings.upsert({
+      where: { team },
+      update: {},
+      create: { team, rotationEnabled: true },
+    });
+    console.log(`- Seeded TeamSettings for ${team}`);
+  }
+
   console.log('Seeding completed successfully.');
 }
 

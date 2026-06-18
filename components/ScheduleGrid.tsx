@@ -238,7 +238,7 @@ export default function ScheduleGrid({ team }: ScheduleGridProps) {
             {rows.map((row) => (
               <tr key={row.employee.id} className="hover:bg-slate-50/50 transition-colors duration-150">
                 {/* Employee Info Column */}
-                <td className="px-6 py-4 sticky left-0 bg-white group-hover:bg-slate-50 z-10 border-r border-slate-200 flex flex-col justify-center gap-1 shadow-[2px_0_5px_rgba(0,0,0,0.02)]">
+                <td className="px-6 py-4 sticky left-0 bg-white group-hover:bg-slate-50 z-10 border-r border-slate-200 flex flex-col justify-center gap-0.5 shadow-[2px_0_5px_rgba(0,0,0,0.02)]">
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-sm text-slate-800 truncate">
                       {row.employee.name}
@@ -252,6 +252,43 @@ export default function ScheduleGrid({ team }: ScheduleGridProps) {
                       ID: {row.employee.employeeId}
                     </span>
                     {getEmployeeShiftBadge(row)}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                    {/* Gender Badge */}
+                    <span className={cn(
+                      "inline-flex items-center text-[9px] font-extrabold px-1 rounded uppercase tracking-wider border",
+                      row.employee.gender === 'FEMALE' 
+                        ? "bg-pink-50 border-pink-200 text-pink-700" 
+                        : "bg-blue-50 border-blue-200 text-blue-700"
+                    )}>
+                      {row.employee.gender === 'FEMALE' ? 'F' : 'M'}
+                    </span>
+                    
+                    {/* Employment Type */}
+                    <span className="inline-flex items-center text-[9px] font-medium text-slate-500 bg-slate-50 border border-slate-200 px-1 py-0.2 rounded uppercase tracking-wide">
+                      {row.employee.employmentType.replace('_', ' ')}
+                    </span>
+                    
+                    {/* Base Shift Badge */}
+                    {(() => {
+                      const baseShift = row.employee.currentShiftTypeId 
+                        ? shiftTypes.find((s) => s.id === row.employee.currentShiftTypeId) 
+                        : null;
+                      if (!baseShift) return null;
+                      return (
+                        <span 
+                          className="inline-flex items-center text-[9px] font-bold px-1 py-0.2 rounded uppercase tracking-wider border"
+                          style={{
+                            backgroundColor: `${baseShift.colorHex}15`,
+                            borderColor: `${baseShift.colorHex}30`,
+                            color: baseShift.colorHex
+                          }}
+                          title={`Base Shift: ${baseShift.name}`}
+                        >
+                          {baseShift.name.replace(' SHIFT', '')}
+                        </span>
+                      );
+                    })()}
                   </div>
                 </td>
 
