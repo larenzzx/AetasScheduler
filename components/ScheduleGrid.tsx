@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useScheduleStore } from '@/store/useScheduleStore';
 import { DayOfWeek } from '@/types';
 import { cn } from '@/lib/utils';
@@ -11,7 +12,18 @@ import {
   DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Info } from 'lucide-react';
+import { Info, AlertTriangle, Loader2 } from 'lucide-react';
+import { markEmergencyLeave, assignReplacement } from '@/app/actions/schedule';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogFooter, 
+  DialogHeader, 
+  DialogTitle 
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 // Helper to determine optimal text color based on background brightness
 function getContrastColor(hexColor: string): string {
@@ -42,6 +54,8 @@ interface ScheduleGridProps {
 export default function ScheduleGrid({ team }: ScheduleGridProps) {
   const { 
     currentWeekDate,
+    alabangWeek,
+    zamboangaWeek,
     alabangRows,
     zamboangaRows,
     shiftTypes, 
@@ -49,8 +63,18 @@ export default function ScheduleGrid({ team }: ScheduleGridProps) {
     updateCell, 
     loading,
     activeShiftFilter,
-    unsavedChangesBannerHeight
+    unsavedChangesBannerHeight,
+    fetchSchedule
   } = useScheduleStore();
+
+  // Emergency Leave replacement dialog states
+  const [replacementOpen, setReplacementOpen] = useState(false);
+  const [replacementLoading, setReplacementLoading] = useState(false);
+  const [gapDetails, setGapDetails] = useState('');
+  const [vacatedShiftTypeId, setVacatedShiftTypeId] = useState('');
+  const [selectedDay, setSelectedDay] = useState<DayOfWeek | null>(null);
+  const [suggestions, setSuggestions] = useState<Array<{ id: string; name: string; isBaseShiftMatch: boolean }>>([]);
+  const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
 
   const baseRows = team === 'ALABANG' ? alabangRows : zamboangaRows;
 
@@ -68,6 +92,59 @@ export default function ScheduleGrid({ team }: ScheduleGridProps) {
         });
       })
     : baseRows;
+
+  const handleEmergencyLeave = async (employeeId: string, day: DayOfWeek) => {
+    const week = team === 'ALABANG' ? alabangWeek : zamboangaWeek;
+    if (!week) {
+      toast.error('Schedule week not loaded.');
+      return;
+    }
+
+    const toastId = toast.loading('Marking emergency leave...');
+    try {
+      const res = await markEmergencyLeave(week.id, employeeId, day);
+      if (res.success) {
+        toast.success('Employee marked on leave.', { id: toastId });
+        await fetchSchedule(); // Refresh grid
+
+        if (res.gapDetected && res.suggestions && res.suggestions.length > 0) {
+          setGapDetails(res.gapDetails || 'A coverage gap was created.');
+          setVacatedShiftTypeId(res.vacatedShiftTypeId || '');
+          setSelectedDay(day);
+          setSuggestions(res.suggestions);
+          setSelectedCandidateId(null);
+          setReplacementOpen(true);
+        } else if (res.gapDetected) {
+          toast.warning(res.gapDetails || 'A coverage gap was created, but no available replacement candidates were found.', { duration: 6000 });
+        }
+      } else {
+        toast.error('Failed to mark emergency leave.', { id: toastId });
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('An error occurred.', { id: toastId });
+    }
+  };
+
+  const handleConfirmReplacement = async () => {
+    if (!selectedCandidateId || !selectedDay) return;
+    
+    const week = team === 'ALABANG' ? alabangWeek : zamboangaWeek;
+    if (!week) return;
+
+    setReplacementLoading(true);
+    try {
+      await assignReplacement(week.id, selectedCandidateId, selectedDay, vacatedShiftTypeId);
+      toast.success('Replacement candidate assigned successfully!');
+      setReplacementOpen(false);
+      await fetchSchedule();
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to assign replacement.');
+    } finally {
+      setReplacementLoading(false);
+    }
+  };
 
   if (loading && baseRows.length === 0) {
     return (
@@ -195,7 +272,6 @@ export default function ScheduleGrid({ team }: ScheduleGridProps) {
       );
     }
 
-    // shiftCount >= 3
     return (
       <span className="inline-flex items-center gap-1 text-[9px] font-bold text-red-600 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded w-fit uppercase tracking-wider">
         <span className="h-1.5 w-1.5 rounded-full bg-red-600 animate-pulse" />
@@ -312,7 +388,7 @@ export default function ScheduleGrid({ team }: ScheduleGridProps) {
                           render={
                             <button
                               className={cn(
-                                "w-full h-14 rounded-lg flex flex-col items-center justify-center text-xs transition-all duration-200 focus:outline-none border",
+                               "w-full h-14 rounded-lg flex flex-col items-center justify-center text-xs transition-all duration-200 focus:outline-none border",
                                 isDayOff 
                                   ? "bg-white border-transparent hover:border-slate-300"
                                   : "hover:scale-[1.02] hover:shadow-sm shadow-black/5 border-transparent",
@@ -368,7 +444,7 @@ export default function ScheduleGrid({ team }: ScheduleGridProps) {
                             <span className="h-3.5 w-3.5 rounded-full border border-red-200 bg-white flex items-center justify-center text-[9px] text-red-500 font-bold uppercase">
                               D
                             </span>
-                            <div className="flex flex-col">
+                            <div className="flex flex-col text-left">
                               <span>DAY-OFF</span>
                               <span className="text-[10px] text-slate-400">No shift duties assigned</span>
                             </div>
@@ -392,7 +468,7 @@ export default function ScheduleGrid({ team }: ScheduleGridProps) {
                                   className="h-3.5 w-3.5 rounded-full border border-black/5 shadow-sm"
                                   style={{ backgroundColor: st.colorHex }}
                                 />
-                                <div className="flex flex-col">
+                                <div className="flex flex-col text-left">
                                   <span className="text-slate-800">{st.name}</span>
                                   {st.startTime && st.endTime ? (
                                     <span className="text-[10px] text-slate-400">
@@ -405,6 +481,20 @@ export default function ScheduleGrid({ team }: ScheduleGridProps) {
                               </DropdownMenuItem>
                             );
                           })}
+
+                          <DropdownMenuSeparator className="bg-slate-100" />
+
+                          {/* Mark Emergency Leave Option */}
+                          <DropdownMenuItem
+                            onClick={() => handleEmergencyLeave(row.employee.id, day)}
+                            className="flex items-center gap-2.5 px-2.5 py-2 text-xs font-semibold cursor-pointer rounded-md text-purple-600 hover:bg-purple-50 transition-colors duration-150"
+                          >
+                            <AlertTriangle className="h-3.5 w-3.5 text-purple-500 animate-pulse" />
+                            <div className="flex flex-col text-left">
+                              <span>Mark Emergency Leave</span>
+                              <span className="text-[9px] text-slate-400 font-medium">Bypass validation & auto-suggest replacement</span>
+                            </div>
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </td>
@@ -415,6 +505,75 @@ export default function ScheduleGrid({ team }: ScheduleGridProps) {
           </tbody>
         </table>
       </div>
+
+      {/* Suggested Replacements Dialog */}
+      <Dialog open={replacementOpen} onOpenChange={setReplacementOpen}>
+        <DialogContent className="sm:max-w-[450px] bg-white border-slate-200">
+          <DialogHeader>
+            <DialogTitle className="text-slate-800 flex items-center gap-2 font-bold tracking-tight">
+              <AlertTriangle className="h-5 w-5 text-amber-500 animate-pulse" />
+              Coverage Gap Suggested Fixes
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 leading-relaxed text-xs">
+              {gapDetails} Select a suggested replacement below to cover the shift.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-3 max-h-[40vh] overflow-y-auto space-y-2 pr-1">
+            {suggestions.map((cand) => {
+              const isSelected = selectedCandidateId === cand.id;
+              return (
+                <button
+                  key={cand.id}
+                  onClick={() => setSelectedCandidateId(cand.id)}
+                  className={cn(
+                    "w-full text-left p-3 rounded-lg border text-xs transition-all duration-200 flex items-center justify-between shadow-sm",
+                    isSelected 
+                      ? "border-emerald-500 bg-emerald-50/50 text-emerald-800 ring-2 ring-emerald-500/20" 
+                      : "border-slate-200 hover:bg-slate-50 text-slate-700 bg-white"
+                  )}
+                >
+                  <div className="space-y-0.5">
+                    <span className="font-bold block text-slate-800">{cand.name}</span>
+                    <span className="text-[10px] text-slate-400">
+                      {cand.isBaseShiftMatch ? 'Base Shift matches this vacated slot' : 'Available & rest period verified'}
+                    </span>
+                  </div>
+                  {cand.isBaseShiftMatch && (
+                    <span className="bg-emerald-100 text-emerald-700 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">
+                      Best Fit
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <DialogFooter className="flex gap-2 sm:justify-between border-t border-slate-100 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setReplacementOpen(false)}
+              className="border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-medium"
+            >
+              Leave Unfilled
+            </Button>
+            <Button
+              onClick={handleConfirmReplacement}
+              disabled={!selectedCandidateId || replacementLoading}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white border-none shadow-md shadow-emerald-600/10 font-bold text-xs"
+            >
+              {replacementLoading ? (
+                <>
+                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                  Assigning...
+                </>
+              ) : (
+                'Confirm Replacement'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

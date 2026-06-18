@@ -552,3 +552,180 @@ export async function updateTeamSettings(team: Team, rotationEnabled: boolean): 
     create: { team, rotationEnabled },
   });
 }
+
+export async function markEmergencyLeave(
+  weekId: string,
+  employeeId: string,
+  dayOfWeek: DayOfWeek
+): Promise<{
+  success: boolean;
+  gapDetected: boolean;
+  gapDetails?: string;
+  vacatedShiftTypeId?: string;
+  suggestions?: Array<{ id: string; name: string; isBaseShiftMatch: boolean }>;
+}> {
+  // 1. Fetch current entry for this cell
+  const entry = await prisma.scheduleEntry.findUnique({
+    where: {
+      employeeId_scheduleWeekId_dayOfWeek: {
+        employeeId,
+        scheduleWeekId: weekId,
+        dayOfWeek,
+      },
+    },
+  });
+
+  const vacatedShiftTypeId = entry?.shiftTypeId;
+
+  // 2. Fetch LEAVE shift type
+  const leaveShift = await prisma.shiftType.findFirst({
+    where: { name: 'LEAVE' },
+  });
+
+  if (!leaveShift) {
+    throw new Error('LEAVE shift type not found in database.');
+  }
+
+  // 3. Immediately set employee's cell to LEAVE in database
+  await prisma.scheduleEntry.upsert({
+    where: {
+      employeeId_scheduleWeekId_dayOfWeek: {
+        employeeId,
+        scheduleWeekId: weekId,
+        dayOfWeek,
+      },
+    },
+    update: { shiftTypeId: leaveShift.id },
+    create: { employeeId, scheduleWeekId: weekId, dayOfWeek, shiftTypeId: leaveShift.id },
+  });
+
+  if (!vacatedShiftTypeId) {
+    return { success: true, gapDetected: false };
+  }
+
+  const shiftTypes = await prisma.shiftType.findMany();
+  const vacatedShift = shiftTypes.find((st) => st.id === vacatedShiftTypeId);
+  
+  if (!vacatedShift || !vacatedShift.startTime || vacatedShift.name === 'LEAVE') {
+    return { success: true, gapDetected: false };
+  }
+
+  // 4. Run gap checks for this day and vacated shift
+  let gapDetected = false;
+  let gapDetails = '';
+
+  const week = await prisma.scheduleWeek.findUnique({
+    where: { id: weekId },
+    include: { entries: true }
+  });
+  if (!week) return { success: true, gapDetected: false };
+
+  const employees = await prisma.employee.findMany({
+    where: { team: week.team, isActive: true },
+  });
+
+  // A: Gender rule check - check if a female employee is left solo on a night shift
+  if (vacatedShift.isNightShift) {
+    const scheduledOnShift = employees.filter((emp) => {
+      const dbMatch = week.entries.find((e) => e.employeeId === emp.id && e.dayOfWeek === dayOfWeek);
+      // Wait: we just saved leaveShift.id for employeeId. But week.entries might not reflect the updated value
+      // since we fetched it before or it hasn't reloaded. Let's make sure we check the database status
+      if (emp.id === employeeId) return false;
+      return dbMatch?.shiftTypeId === vacatedShift.id;
+    });
+
+    const femalesOnShift = scheduledOnShift.filter((emp) => emp.gender === 'FEMALE');
+    if (femalesOnShift.length > 0 && scheduledOnShift.length === 1) {
+      gapDetected = true;
+      gapDetails = `${femalesOnShift[0].name} is now alone on ${vacatedShift.name} on ${dayOfWeek}.`;
+    }
+  }
+
+  // B: Coverage check - check if the vacated shift has zero coverage now
+  const activeOnShift = employees.filter((emp) => {
+    if (emp.id === employeeId) return false;
+    const dbMatch = week.entries.find((e) => e.employeeId === emp.id && e.dayOfWeek === dayOfWeek);
+    return dbMatch?.shiftTypeId === vacatedShift.id;
+  });
+
+  if (activeOnShift.length === 0) {
+    gapDetected = true;
+    gapDetails = gapDetails 
+      ? `${gapDetails} Also, ${vacatedShift.name} now has 0 coverage.` 
+      : `${vacatedShift.name} on ${dayOfWeek} now has 0 coverage.`;
+  }
+
+  if (!gapDetected) {
+    return { success: true, gapDetected: false };
+  }
+
+  // 5. Generate suggested replacements
+  const suggestions: Array<{ id: string; name: string; isBaseShiftMatch: boolean }> = [];
+
+  for (const candidate of employees) {
+    if (candidate.id === employeeId) continue;
+
+    const candEntry = week.entries.find((e) => e.employeeId === candidate.id && e.dayOfWeek === dayOfWeek);
+    // Again, candidate's entry might be read from database
+    const currentShiftId = candEntry?.shiftTypeId;
+    const candShift = currentShiftId ? shiftTypes.find((st) => st.id === currentShiftId) : null;
+    
+    const isAvailable = !candShift || !candShift.startTime || candShift.name === 'LEAVE';
+    if (!isAvailable) continue;
+
+    // Simulate candidate on vacatedShift
+    const simulatedUpdates = week.entries.map((e) => {
+      if (e.employeeId === candidate.id && e.dayOfWeek === dayOfWeek) {
+        return { employeeId: candidate.id, dayOfWeek: e.dayOfWeek as DayOfWeek, shiftTypeId: vacatedShift.id };
+      }
+      if (e.employeeId === employeeId && e.dayOfWeek === dayOfWeek) {
+        return { employeeId: employeeId, dayOfWeek: e.dayOfWeek as DayOfWeek, shiftTypeId: leaveShift.id };
+      }
+      return { employeeId: e.employeeId, dayOfWeek: e.dayOfWeek as DayOfWeek, shiftTypeId: e.shiftTypeId };
+    });
+
+    const valResult = await validateSchedule(weekId, simulatedUpdates);
+    const hasErrorForCand = valResult.errors.some((err) => err.includes(candidate.name));
+    
+    if (!hasErrorForCand) {
+      suggestions.push({
+        id: candidate.id,
+        name: candidate.name,
+        isBaseShiftMatch: candidate.currentShiftTypeId === vacatedShift.id
+      });
+    }
+  }
+
+  suggestions.sort((a, b) => {
+    if (a.isBaseShiftMatch && !b.isBaseShiftMatch) return -1;
+    if (!a.isBaseShiftMatch && b.isBaseShiftMatch) return 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  return {
+    success: true,
+    gapDetected: true,
+    gapDetails,
+    vacatedShiftTypeId: vacatedShift.id,
+    suggestions,
+  };
+}
+
+export async function assignReplacement(
+  weekId: string,
+  candidateId: string,
+  dayOfWeek: DayOfWeek,
+  shiftTypeId: string
+): Promise<void> {
+  await prisma.scheduleEntry.upsert({
+    where: {
+      employeeId_scheduleWeekId_dayOfWeek: {
+        employeeId: candidateId,
+        scheduleWeekId: weekId,
+        dayOfWeek,
+      },
+    },
+    update: { shiftTypeId },
+    create: { employeeId: candidateId, scheduleWeekId: weekId, dayOfWeek, shiftTypeId },
+  });
+}
