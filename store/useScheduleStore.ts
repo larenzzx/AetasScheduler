@@ -29,6 +29,9 @@ interface ScheduleState {
   activeShiftFilter: string | null;
   setActiveShiftFilter: (filter: string | null) => void;
   
+  unsavedChangesBannerHeight: number;
+  setUnsavedChangesBannerHeight: (height: number) => void;
+  
   currentUser: UserProfile | null;
   fetchCurrentUser: () => Promise<void>;
   
@@ -74,6 +77,8 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
   unsavedChanges: {},
   activeShiftFilter: null,
   setActiveShiftFilter: (filter) => set({ activeShiftFilter: filter }),
+  unsavedChangesBannerHeight: 0,
+  setUnsavedChangesBannerHeight: (height) => set({ unsavedChangesBannerHeight: height }),
   currentUser: null,
   fetchCurrentUser: async () => {
     const user = await getCurrentUser();

@@ -48,7 +48,8 @@ export default function ScheduleGrid({ team }: ScheduleGridProps) {
     unsavedChanges, 
     updateCell, 
     loading,
-    activeShiftFilter
+    activeShiftFilter,
+    unsavedChangesBannerHeight
   } = useScheduleStore();
 
   const baseRows = team === 'ALABANG' ? alabangRows : zamboangaRows;
@@ -204,7 +205,12 @@ export default function ScheduleGrid({ team }: ScheduleGridProps) {
   };
 
   return (
-    <div className="w-full bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <div 
+      className="w-full bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden transition-all duration-300"
+      style={{
+        marginBottom: unsavedChangesBannerHeight > 0 ? `${unsavedChangesBannerHeight + 24}px` : undefined
+      }}
+    >
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-left table-fixed">
           <thead>
