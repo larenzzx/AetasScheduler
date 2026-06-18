@@ -624,8 +624,8 @@ export async function markEmergencyLeave(
     where: { team: week.team, isActive: true },
   });
 
-  // A: Gender rule check - check if a female employee is left solo on a night shift
-  if (vacatedShift.isNightShift) {
+  // A: Gender rule check - check if a female employee is left solo on a night shift (Only for ZAMBOANGA team)
+  if (week.team === 'ZAMBOANGA' && vacatedShift.isNightShift) {
     const scheduledOnShift = employees.filter((emp) => {
       const dbMatch = week.entries.find((e) => e.employeeId === emp.id && e.dayOfWeek === dayOfWeek);
       // Wait: we just saved leaveShift.id for employeeId. But week.entries might not reflect the updated value
