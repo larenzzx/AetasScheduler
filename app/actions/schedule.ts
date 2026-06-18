@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { DayOfWeek, Team, ScheduleDataResponse, ScheduleGridRow } from '@/types';
 import { formatWeekRange } from '@/lib/utils';
+import { validateSchedule } from '@/lib/schedulingValidation';
 
 export async function getScheduleData(
   weekStartDateStr: string,
@@ -175,7 +176,18 @@ export async function createScheduleWeek(
 export async function saveScheduleEntries(
   weekId: string,
   updates: Array<{ employeeId: string; dayOfWeek: DayOfWeek; shiftTypeId: string | null }>
-): Promise<void> {
+): Promise<{ success: boolean; errors: string[]; warnings: string[] }> {
+  // Run validations
+  const validationResult = await validateSchedule(weekId, updates);
+  
+  if (!validationResult.success) {
+    return {
+      success: false,
+      errors: validationResult.errors,
+      warnings: validationResult.warnings,
+    };
+  }
+
   // We use a transaction to run all updates together
   await prisma.$transaction(
     updates.map((update) =>
@@ -199,6 +211,12 @@ export async function saveScheduleEntries(
       })
     )
   );
+
+  return {
+    success: true,
+    errors: [],
+    warnings: validationResult.warnings,
+  };
 }
 
 export async function deleteScheduleWeek(

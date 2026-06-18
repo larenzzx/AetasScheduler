@@ -53,8 +53,19 @@ export default function UnsavedChangesBanner() {
 
   const handleSave = async () => {
     try {
-      await saveChanges();
-      toast.success('Schedule saved successfully!');
+      const result = await saveChanges();
+      if (result) {
+        if (!result.success) {
+          result.errors.forEach((err) => {
+            toast.error(err, { duration: 10000 });
+          });
+        } else {
+          toast.success('Schedule saved successfully!');
+          result.warnings.forEach((warn) => {
+            toast.warning(warn, { duration: 10000 });
+          });
+        }
+      }
     } catch {
       toast.error('Failed to save schedule. Please try again.');
     }
