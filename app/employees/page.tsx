@@ -374,7 +374,13 @@ export default function EmployeesPage() {
                     onValueChange={(val) => { if (val) setNewTeam(val as Team); }}
                   >
                     <SelectTrigger className="border-slate-200 text-slate-800 w-full">
-                      <SelectValue placeholder="Select Team" />
+                      <SelectValue placeholder="Select Team">
+                        {(value) => {
+                          if (value === 'ALABANG') return 'Team Alabang';
+                          if (value === 'ZAMBOANGA') return 'Team Zamboanga';
+                          return value || 'Select Team';
+                        }}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent className="bg-white border-slate-200">
                       <SelectItem value="ALABANG" className="hover:bg-slate-50">Team Alabang</SelectItem>
@@ -393,7 +399,13 @@ export default function EmployeesPage() {
                     onValueChange={(val) => { if (val) setNewGender(val as Gender); }}
                   >
                     <SelectTrigger className="border-slate-200 text-slate-800 w-full">
-                      <SelectValue placeholder="Select Gender" />
+                      <SelectValue placeholder="Select Gender">
+                        {(value) => {
+                          if (value === 'MALE') return 'Male';
+                          if (value === 'FEMALE') return 'Female';
+                          return value || 'Select Gender';
+                        }}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent className="bg-white border-slate-200">
                       <SelectItem value="MALE" className="hover:bg-slate-50">Male</SelectItem>
@@ -412,7 +424,13 @@ export default function EmployeesPage() {
                     onValueChange={(val) => { if (val) setNewEmploymentType(val); }}
                   >
                     <SelectTrigger className="border-slate-200 text-slate-800 w-full">
-                      <SelectValue placeholder="Select Role" />
+                      <SelectValue placeholder="Select Role">
+                        {(value) => {
+                          if (!value) return 'Select Role';
+                          const role = jobRoles.find((r) => r.name === value);
+                          return role ? role.name.replace(/_/g, ' ') : value.replace(/_/g, ' ');
+                        }}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent className="bg-white border-slate-200">
                       {jobRoles.length === 0 ? (
@@ -443,7 +461,13 @@ export default function EmployeesPage() {
                     onValueChange={(val) => { if (val) setNewCurrentShiftTypeId(val); }}
                   >
                     <SelectTrigger className="border-slate-200 text-slate-800 w-full">
-                      <SelectValue placeholder="Select Base Shift" />
+                      <SelectValue placeholder="Select Base Shift">
+                        {(value) => {
+                          if (!value || value === 'NONE') return 'No Base Shift (Default)';
+                          const shift = shiftTypes.find((st) => st.id === value);
+                          return shift ? `${shift.name} (${shift.startTime} - ${shift.endTime})` : value;
+                        }}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent className="bg-white border-slate-200">
                       <SelectItem value="NONE" className="hover:bg-slate-50">No Base Shift (Default)</SelectItem>
@@ -484,7 +508,13 @@ export default function EmployeesPage() {
                       onValueChange={(val) => setNewMentorId(val || 'NONE')}
                     >
                       <SelectTrigger className="border-slate-200 text-slate-800 w-full">
-                        <SelectValue placeholder="Select Mentor (Optional)" />
+                        <SelectValue placeholder="Select Mentor (Optional)">
+                          {(value) => {
+                            if (!value || value === 'NONE') return 'No Mentor';
+                            const emp = employees.find((e) => e.id === value);
+                            return emp ? `${emp.name} (${emp.team})` : value;
+                          }}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent className="bg-white border-slate-200">
                         <SelectItem value="NONE" className="hover:bg-slate-50">No Mentor</SelectItem>
@@ -555,7 +585,14 @@ export default function EmployeesPage() {
               onValueChange={(val) => { if (val) setTeamFilter(val as 'ALL' | 'ALABANG' | 'ZAMBOANGA'); }}
             >
               <SelectTrigger className="border-slate-200 text-slate-800 min-w-[130px]">
-                <SelectValue placeholder="All Teams" />
+                <SelectValue placeholder="All Teams">
+                  {(value) => {
+                    if (value === 'ALL') return 'All Teams';
+                    if (value === 'ALABANG') return 'Team Alabang';
+                    if (value === 'ZAMBOANGA') return 'Team Zamboanga';
+                    return value || 'All Teams';
+                  }}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent className="bg-white border-slate-200">
                 <SelectItem value="ALL" className="hover:bg-slate-50">All Teams</SelectItem>
@@ -573,7 +610,14 @@ export default function EmployeesPage() {
               onValueChange={(val) => { if (val) setStatusFilter(val as 'ALL' | 'ACTIVE' | 'INACTIVE'); }}
             >
               <SelectTrigger className="border-slate-200 text-slate-800 min-w-[130px]">
-                <SelectValue placeholder="All Status" />
+                <SelectValue placeholder="All Status">
+                  {(value) => {
+                    if (value === 'ALL') return 'All Status';
+                    if (value === 'ACTIVE') return 'Active';
+                    if (value === 'INACTIVE') return 'Inactive';
+                    return value || 'All Status';
+                  }}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent className="bg-white border-slate-200">
                 <SelectItem value="ALL" className="hover:bg-slate-50">All Status</SelectItem>
@@ -879,7 +923,13 @@ export default function EmployeesPage() {
                   onValueChange={(val) => { if (val) setEditTeam(val as Team); }}
                 >
                   <SelectTrigger className="border-slate-200 text-slate-800 w-full">
-                    <SelectValue placeholder="Select Team" />
+                    <SelectValue placeholder="Select Team">
+                      {(value) => {
+                        if (value === 'ALABANG') return 'Team Alabang';
+                        if (value === 'ZAMBOANGA') return 'Team Zamboanga';
+                        return value || 'Select Team';
+                      }}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent className="bg-white border-slate-200">
                     <SelectItem value="ALABANG" className="hover:bg-slate-50">Team Alabang</SelectItem>
@@ -898,7 +948,13 @@ export default function EmployeesPage() {
                   onValueChange={(val) => { if (val) setEditGender(val as Gender); }}
                 >
                   <SelectTrigger className="border-slate-200 text-slate-800 w-full">
-                    <SelectValue placeholder="Select Gender" />
+                    <SelectValue placeholder="Select Gender">
+                      {(value) => {
+                        if (value === 'MALE') return 'Male';
+                        if (value === 'FEMALE') return 'Female';
+                        return value || 'Select Gender';
+                      }}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent className="bg-white border-slate-200">
                     <SelectItem value="MALE" className="hover:bg-slate-50">Male</SelectItem>
@@ -917,7 +973,13 @@ export default function EmployeesPage() {
                   onValueChange={(val) => { if (val) setEditEmploymentType(val); }}
                 >
                   <SelectTrigger className="border-slate-200 text-slate-800 w-full">
-                    <SelectValue placeholder="Select Role" />
+                    <SelectValue placeholder="Select Role">
+                      {(value) => {
+                        if (!value) return 'Select Role';
+                        const role = jobRoles.find((r) => r.name === value);
+                        return role ? role.name.replace(/_/g, ' ') : value.replace(/_/g, ' ');
+                      }}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent className="bg-white border-slate-200">
                     {jobRoles.length === 0 ? (
@@ -948,7 +1010,13 @@ export default function EmployeesPage() {
                   onValueChange={(val) => { if (val) setEditCurrentShiftTypeId(val); }}
                 >
                   <SelectTrigger className="border-slate-200 text-slate-800 w-full">
-                    <SelectValue placeholder="Select Base Shift" />
+                    <SelectValue placeholder="Select Base Shift">
+                      {(value) => {
+                        if (!value || value === 'NONE') return 'No Base Shift (Default)';
+                        const shift = shiftTypes.find((st) => st.id === value);
+                        return shift ? `${shift.name} (${shift.startTime} - ${shift.endTime})` : value;
+                      }}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent className="bg-white border-slate-200">
                     <SelectItem value="NONE" className="hover:bg-slate-50">No Base Shift (Default)</SelectItem>
@@ -989,7 +1057,13 @@ export default function EmployeesPage() {
                     onValueChange={(val) => setEditMentorId(val || 'NONE')}
                   >
                     <SelectTrigger className="border-slate-200 text-slate-800 w-full">
-                      <SelectValue placeholder="Select Mentor (Optional)" />
+                      <SelectValue placeholder="Select Mentor (Optional)">
+                        {(value) => {
+                          if (!value || value === 'NONE') return 'No Mentor';
+                          const emp = employees.find((e) => e.id === value);
+                          return emp ? `${emp.name} (${emp.team})` : value;
+                        }}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent className="bg-white border-slate-200">
                       <SelectItem value="NONE" className="hover:bg-slate-50">No Mentor</SelectItem>
