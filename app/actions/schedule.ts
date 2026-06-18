@@ -269,60 +269,150 @@ export async function createScheduleWeek(
     let stable = false;
     let iteration = 0;
     const maxIterations = 5;
+    const autoResolvedEmployees = new Set<string>();
 
     while (!stable && iteration < maxIterations) {
       iteration++;
-      // We must pass week.id and proposed updates
       const validationResult = await validateSchedule(week.id, proposedUpdates);
       
       if (validationResult.success) {
         stable = true;
       } else {
-        let newlyFlagged = false;
+        let resolvedAny = false;
         
         for (const error of validationResult.errors) {
-          for (const employee of employees) {
-            if (employee.isFixedSchedule || !rotationEnabled) continue; // Skipped, not rotated
-            if (flaggedEmployees.has(employee.id)) continue;
+          const isGenderError = error.includes('companion is required for night shifts');
+          const isMentorError = error.includes('requires a mentor present');
 
-            if (error.includes(employee.name)) {
-              flaggedEmployees.add(employee.id);
-              newlyFlagged = true;
-              
-              if (!flaggedReasons.has(employee.id)) {
-                flaggedReasons.set(employee.id, []);
-              }
-              flaggedReasons.get(employee.id)!.push(error);
+          if (isGenderError) {
+            // Find female employee and day
+            const femaleEmp = employees.find(e => error.includes(e.name) && e.gender === 'FEMALE');
+            const dayStr = days.find(d => error.includes(d));
+            const nightShiftType = shiftTypes.find(st => st.isNightShift && error.includes(st.name));
 
-              // Revert this employee's schedule to their previous week's shift or base shift
-              for (const day of days) {
-                const prevEntry = prevWeek?.entries.find(
-                  (e) => e.employeeId === employee.id && e.dayOfWeek === day
-                );
-                
-                let revertedShiftTypeId: string | null = null;
-                if (prevEntry) {
-                  revertedShiftTypeId = prevEntry.shiftTypeId;
-                } else if (employee.currentShiftTypeId) {
-                  const baseST = shiftTypes.find((st) => st.id === employee.currentShiftTypeId);
-                  if (baseST && baseST.daysOfWeek.includes(day)) {
-                    revertedShiftTypeId = employee.currentShiftTypeId;
+            if (femaleEmp && dayStr && nightShiftType) {
+              let companionFound = false;
+              for (const cand of employees) {
+                if (cand.id === femaleEmp.id) continue;
+                if (cand.isFixedSchedule) continue;
+
+                const candUpdateIdx = proposedUpdates.findIndex(u => u.employeeId === cand.id && u.dayOfWeek === dayStr);
+                if (candUpdateIdx === -1) continue;
+
+                const currentShiftId = proposedUpdates[candUpdateIdx].shiftTypeId;
+                const currentShift = currentShiftId ? shiftTypes.find(st => st.id === currentShiftId) : null;
+                const isAvailable = !currentShift || !currentShift.startTime;
+
+                if (isAvailable) {
+                  const prevShiftId = currentShiftId;
+                  proposedUpdates[candUpdateIdx].shiftTypeId = nightShiftType.id;
+
+                  const tempVal = await validateSchedule(week.id, proposedUpdates);
+                  const candHasError = tempVal.errors.some(err => err.includes(cand.name));
+
+                  if (!candHasError) {
+                    companionFound = true;
+                    autoResolvedEmployees.add(femaleEmp.id);
+                    autoResolvedEmployees.add(cand.id);
+                    resolvedAny = true;
+                    break;
+                  } else {
+                    proposedUpdates[candUpdateIdx].shiftTypeId = prevShiftId;
                   }
                 }
+              }
+              if (companionFound) {
+                break;
+              }
+            }
+          } else if (isMentorError) {
+            const newEmp = employees.find(e => error.includes(e.name) && e.requiresMentor);
+            const dayStr = days.find(d => error.includes(d));
+            const newEmpUpdate = proposedUpdates.find(u => u.employeeId === newEmp?.id && u.dayOfWeek === dayStr);
+            const shiftType = newEmpUpdate?.shiftTypeId ? shiftTypes.find(st => st.id === newEmpUpdate.shiftTypeId) : null;
 
-                const idx = proposedUpdates.findIndex(
-                  (u) => u.employeeId === employee.id && u.dayOfWeek === day
-                );
-                if (idx !== -1) {
-                  proposedUpdates[idx].shiftTypeId = revertedShiftTypeId;
+            if (newEmp && dayStr && shiftType) {
+              let companionFound = false;
+              for (const cand of employees) {
+                if (cand.id === newEmp.id) continue;
+                if (cand.isFixedSchedule) continue;
+
+                const isMentorCandidate = !cand.requiresMentor || cand.id === newEmp.mentorId;
+                if (isMentorCandidate) {
+                  const candUpdateIdx = proposedUpdates.findIndex(u => u.employeeId === cand.id && u.dayOfWeek === dayStr);
+                  if (candUpdateIdx === -1) continue;
+
+                  const currentShiftId = proposedUpdates[candUpdateIdx].shiftTypeId;
+                  const currentShift = currentShiftId ? shiftTypes.find(st => st.id === currentShiftId) : null;
+                  const isAvailable = !currentShift || !currentShift.startTime;
+
+                  if (isAvailable) {
+                    const prevShiftId = currentShiftId;
+                    proposedUpdates[candUpdateIdx].shiftTypeId = shiftType.id;
+
+                    const tempVal = await validateSchedule(week.id, proposedUpdates);
+                    const candHasError = tempVal.errors.some(err => err.includes(cand.name));
+
+                    if (!candHasError) {
+                      companionFound = true;
+                      autoResolvedEmployees.add(newEmp.id);
+                      autoResolvedEmployees.add(cand.id);
+                      resolvedAny = true;
+                      break;
+                    } else {
+                      proposedUpdates[candUpdateIdx].shiftTypeId = prevShiftId;
+                    }
+                  }
                 }
+              }
+              if (companionFound) {
+                break;
               }
             }
           }
         }
 
-        if (!newlyFlagged) {
-          stable = true;
+        if (!resolvedAny) {
+          let newlyFlagged = false;
+          for (const error of validationResult.errors) {
+            for (const employee of employees) {
+              if (employee.isFixedSchedule || !rotationEnabled) continue;
+              if (flaggedEmployees.has(employee.id)) continue;
+
+              if (error.includes(employee.name)) {
+                flaggedEmployees.add(employee.id);
+                newlyFlagged = true;
+                if (!flaggedReasons.has(employee.id)) {
+                  flaggedReasons.set(employee.id, []);
+                }
+                flaggedReasons.get(employee.id)!.push(error);
+
+                for (const day of days) {
+                  const prevEntry = prevWeek?.entries.find(
+                    (e) => e.employeeId === employee.id && e.dayOfWeek === day
+                  );
+                  let revertedShiftTypeId: string | null = null;
+                  if (prevEntry) {
+                    revertedShiftTypeId = prevEntry.shiftTypeId;
+                  } else if (employee.currentShiftTypeId) {
+                    const baseST = shiftTypes.find((st) => st.id === employee.currentShiftTypeId);
+                    if (baseST && baseST.daysOfWeek.includes(day)) {
+                      revertedShiftTypeId = employee.currentShiftTypeId;
+                    }
+                  }
+                  const idx = proposedUpdates.findIndex(
+                    (u) => u.employeeId === employee.id && u.dayOfWeek === day
+                  );
+                  if (idx !== -1) {
+                    proposedUpdates[idx].shiftTypeId = revertedShiftTypeId;
+                  }
+                }
+              }
+            }
+          }
+          if (!newlyFlagged) {
+            stable = true;
+          }
         }
       }
     }
@@ -345,6 +435,7 @@ export async function createScheduleWeek(
 
     // Build summary counts
     let rotatedCount = 0;
+    let autoResolvedCount = 0;
     let flaggedCount = 0;
     let skippedCount = 0;
     const flags: Array<{ employeeName: string; reason: string }> = [];
@@ -358,6 +449,8 @@ export async function createScheduleWeek(
           employeeName: employee.name,
           reason: Array.from(new Set(flaggedReasons.get(employee.id) || [])).join('; ')
         });
+      } else if (autoResolvedEmployees.has(employee.id)) {
+        autoResolvedCount++;
       } else {
         rotatedCount++;
       }
@@ -365,6 +458,7 @@ export async function createScheduleWeek(
 
     const summary = {
       rotatedCount,
+      autoResolvedCount,
       flaggedCount,
       skippedCount,
       flags

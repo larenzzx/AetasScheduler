@@ -34,6 +34,7 @@ export default function NewScheduleDialog() {
   const [summaries, setSummaries] = useState<Array<{
     team: string;
     rotatedCount: number;
+    autoResolvedCount: number;
     flaggedCount: number;
     skippedCount: number;
     flags: Array<{ employeeName: string; reason: string }>;
@@ -73,6 +74,7 @@ export default function NewScheduleDialog() {
           .map(r => ({
             team: r.team,
             rotatedCount: r.summary!.rotatedCount,
+            autoResolvedCount: r.summary!.autoResolvedCount,
             flaggedCount: r.summary!.flaggedCount,
             skippedCount: r.summary!.skippedCount,
             flags: r.summary!.flags
@@ -121,18 +123,22 @@ export default function NewScheduleDialog() {
                   </h3>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="rounded-lg bg-emerald-50 border border-emerald-100 p-3 text-center">
-                    <span className="block text-2xl font-bold text-emerald-600">{s.rotatedCount}</span>
-                    <span className="text-[10px] font-semibold text-emerald-500 uppercase tracking-wider">Rotated</span>
+                <div className="grid grid-cols-4 gap-2">
+                  <div className="rounded-lg bg-emerald-50 border border-emerald-100 p-2 text-center">
+                    <span className="block text-xl font-bold text-emerald-600">{s.rotatedCount}</span>
+                    <span className="text-[9px] font-semibold text-emerald-500 uppercase tracking-wider block truncate">Rotated</span>
                   </div>
-                  <div className="rounded-lg bg-slate-50 border border-slate-100 p-3 text-center">
-                    <span className="block text-2xl font-bold text-slate-500">{s.skippedCount}</span>
-                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Skipped</span>
+                  <div className="rounded-lg bg-blue-50 border border-blue-100 p-2 text-center">
+                    <span className="block text-xl font-bold text-blue-600">{s.autoResolvedCount}</span>
+                    <span className="text-[9px] font-semibold text-blue-500 uppercase tracking-wider block truncate">Resolved</span>
                   </div>
-                  <div className="rounded-lg bg-red-50 border border-red-100 p-3 text-center">
-                    <span className="block text-2xl font-bold text-red-600">{s.flaggedCount}</span>
-                    <span className="text-[10px] font-semibold text-red-500 uppercase tracking-wider">Flagged</span>
+                  <div className="rounded-lg bg-slate-50 border border-slate-100 p-2 text-center">
+                    <span className="block text-xl font-bold text-slate-500">{s.skippedCount}</span>
+                    <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider block truncate">Skipped</span>
+                  </div>
+                  <div className="rounded-lg bg-red-50 border border-red-100 p-2 text-center">
+                    <span className="block text-xl font-bold text-red-600">{s.flaggedCount}</span>
+                    <span className="text-[9px] font-semibold text-red-500 uppercase tracking-wider block truncate">Flagged</span>
                   </div>
                 </div>
 

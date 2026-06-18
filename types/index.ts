@@ -32,6 +32,7 @@ export interface ScheduleDataResponse {
   rows: ScheduleGridRow[];
   summary?: {
     rotatedCount: number;
+    autoResolvedCount: number;
     flaggedCount: number;
     skippedCount: number;
     flags: Array<{ employeeName: string; reason: string }>;
