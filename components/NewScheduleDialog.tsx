@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useScheduleStore } from '@/store/useScheduleStore';
 import { createScheduleWeek } from '@/app/actions/schedule';
 import { Team } from '@/types';
@@ -21,7 +21,7 @@ import { Plus, CalendarRange, Loader2, AlertTriangle } from 'lucide-react';
 import { startOfWeek, format, parseISO } from 'date-fns';
 
 export default function NewScheduleDialog() {
-  const { fetchSchedule, setWeekDate } = useScheduleStore();
+  const { fetchSchedule, setWeekDate, currentWeekDate } = useScheduleStore();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   
@@ -40,6 +40,13 @@ export default function NewScheduleDialog() {
     skippedCount: number;
     flags: Array<{ employeeName: string; reason: string }>;
   }>>([]);
+
+  // Sync date input with currently viewed week when modal opens
+  useEffect(() => {
+    if (open) {
+      setSelectedDate(currentWeekDate);
+    }
+  }, [open, currentWeekDate]);
 
   const handleCreate = async () => {
     setLoading(true);
