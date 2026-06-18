@@ -8,6 +8,7 @@ import {
   toggleEmployeeStatus,
   getActiveShiftTypes
 } from '@/app/actions/employee';
+import { getJobRoles } from '@/app/actions/job-role';
 import { Employee, Team, ShiftType } from '@/types';
 import { Gender } from '@prisma/client';
 import { Button } from '@/components/ui/button';
@@ -52,6 +53,7 @@ export default function EmployeesPage() {
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
 
   const [shiftTypes, setShiftTypes] = useState<ShiftType[]>([]);
+  const [jobRoles, setJobRoles] = useState<Array<{ id: string; name: string }>>([]);
 
   // Add Employee states
   const [addOpen, setAddOpen] = useState(false);
@@ -89,12 +91,18 @@ export default function EmployeesPage() {
   // Load initial data
   const loadData = useCallback(async () => {
     try {
-      const [emps, shifts] = await Promise.all([
+      const [emps, shifts, roles] = await Promise.all([
         getEmployees(),
-        getActiveShiftTypes()
+        getActiveShiftTypes(),
+        getJobRoles()
       ]);
       setEmployees(emps);
       setShiftTypes(shifts);
+      setJobRoles(roles);
+
+      if (roles.length > 0) {
+        setNewEmploymentType((prev) => roles.some((r) => r.name === prev) ? prev : roles[0].name);
+      }
     } catch (error) {
       console.error('Failed to load employee data:', error);
       toast.error('Failed to load employee list.');
@@ -407,10 +415,20 @@ export default function EmployeesPage() {
                       <SelectValue placeholder="Select Role" />
                     </SelectTrigger>
                     <SelectContent className="bg-white border-slate-200">
-                      <SelectItem value="SOC_OPERATIONS" className="hover:bg-slate-50">SOC Operations</SelectItem>
-                      <SelectItem value="DESIGNER" className="hover:bg-slate-50">Designer</SelectItem>
-                      <SelectItem value="IT_SUPPORT" className="hover:bg-slate-50">IT Support</SelectItem>
-                      <SelectItem value="OTHER" className="hover:bg-slate-50">Other</SelectItem>
+                      {jobRoles.length === 0 ? (
+                        <>
+                          <SelectItem value="SOC_OPERATIONS" className="hover:bg-slate-50">SOC Operations</SelectItem>
+                          <SelectItem value="DESIGNER" className="hover:bg-slate-50">Designer</SelectItem>
+                          <SelectItem value="IT_SUPPORT" className="hover:bg-slate-50">IT Support</SelectItem>
+                          <SelectItem value="OTHER" className="hover:bg-slate-50">Other</SelectItem>
+                        </>
+                      ) : (
+                        jobRoles.map((role) => (
+                          <SelectItem key={role.id} value={role.name} className="hover:bg-slate-50">
+                            {role.name.replace(/_/g, ' ')}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -615,7 +633,12 @@ export default function EmployeesPage() {
 
                     {/* Name */}
                     <td className="px-6 py-4">
-                      <div className="font-semibold text-slate-800">{emp.name}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-slate-800">{emp.name}</span>
+                        <span className="text-[9px] bg-slate-100 border border-slate-200 text-slate-500 font-bold px-1.5 py-0.2 rounded uppercase tracking-wider">
+                          {emp.employmentType.replace(/_/g, ' ')}
+                        </span>
+                      </div>
                       {emp.requiresMentor && (
                         <div className="text-[10px] text-amber-600 font-medium mt-0.5">
                           Requires Mentor {(() => {
@@ -734,7 +757,12 @@ export default function EmployeesPage() {
                 {/* Name */}
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex flex-col">
-                    <span className="font-bold text-slate-800 text-sm truncate">{emp.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-slate-800 text-sm truncate">{emp.name}</span>
+                      <span className="text-[9px] bg-slate-100 border border-slate-200 text-slate-500 font-bold px-1.5 py-0.2 rounded uppercase tracking-wider">
+                        {emp.employmentType.replace(/_/g, ' ')}
+                      </span>
+                    </div>
                     {emp.requiresMentor && (
                       <span className="text-[10px] text-amber-600 font-medium mt-0.5">
                         Requires Mentor {(() => {
@@ -892,10 +920,20 @@ export default function EmployeesPage() {
                     <SelectValue placeholder="Select Role" />
                   </SelectTrigger>
                   <SelectContent className="bg-white border-slate-200">
-                    <SelectItem value="SOC_OPERATIONS" className="hover:bg-slate-50">SOC Operations</SelectItem>
-                    <SelectItem value="DESIGNER" className="hover:bg-slate-50">Designer</SelectItem>
-                    <SelectItem value="IT_SUPPORT" className="hover:bg-slate-50">IT Support</SelectItem>
-                    <SelectItem value="OTHER" className="hover:bg-slate-50">Other</SelectItem>
+                    {jobRoles.length === 0 ? (
+                      <>
+                        <SelectItem value="SOC_OPERATIONS" className="hover:bg-slate-50">SOC Operations</SelectItem>
+                        <SelectItem value="DESIGNER" className="hover:bg-slate-50">Designer</SelectItem>
+                        <SelectItem value="IT_SUPPORT" className="hover:bg-slate-50">IT Support</SelectItem>
+                        <SelectItem value="OTHER" className="hover:bg-slate-50">Other</SelectItem>
+                      </>
+                    ) : (
+                      jobRoles.map((role) => (
+                        <SelectItem key={role.id} value={role.name} className="hover:bg-slate-50">
+                          {role.name.replace(/_/g, ' ')}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
