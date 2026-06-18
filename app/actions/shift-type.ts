@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import { validateShiftCoverage } from '@/lib/schedulingValidation';
 
 export async function getShiftTypes() {
   return await prisma.shiftType.findMany({
@@ -45,11 +46,13 @@ export async function createShiftType(data: {
       },
     });
 
+    const warnings = await validateShiftCoverage();
+
     revalidatePath('/shift-types');
     revalidatePath('/schedule');
     revalidatePath('/employees');
     revalidatePath('/');
-    return { success: true, shiftType };
+    return { success: true, shiftType, warnings };
   } catch (error) {
     console.error('Error creating shift type:', error);
     return { success: false, error: 'Failed to create shift type.' };
@@ -88,11 +91,13 @@ export async function updateShiftType(
       },
     });
 
+    const warnings = await validateShiftCoverage();
+
     revalidatePath('/shift-types');
     revalidatePath('/schedule');
     revalidatePath('/employees');
     revalidatePath('/');
-    return { success: true, shiftType };
+    return { success: true, shiftType, warnings };
   } catch (error) {
     console.error('Error updating shift type:', error);
     return { success: false, error: 'Failed to update shift type.' };
@@ -120,11 +125,13 @@ export async function deleteShiftType(id: string) {
       where: { id },
     });
 
+    const warnings = await validateShiftCoverage();
+
     revalidatePath('/shift-types');
     revalidatePath('/schedule');
     revalidatePath('/employees');
     revalidatePath('/');
-    return { success: true };
+    return { success: true, warnings };
   } catch (error) {
     console.error('Error deleting shift type:', error);
     return { success: false, error: 'Failed to delete shift type.' };
@@ -153,4 +160,8 @@ export async function updateShiftSortOrders(
     console.error('Error updating shift sort orders:', error);
     return { success: false, error: 'Failed to update shift ordering.' };
   }
+}
+
+export async function getShiftCoverageWarnings(): Promise<string[]> {
+  return await validateShiftCoverage();
 }

@@ -9,6 +9,11 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Gender {
+  MALE
+  FEMALE
+}
+
 enum Team {
   ALABANG
   ZAMBOANGA
@@ -25,24 +30,37 @@ enum DayOfWeek {
 }
 
 model Employee {
-  id              String          @id @default(cuid())
-  name            String
-  employeeId      String          @unique
-  team            Team
-  isActive        Boolean         @default(true)
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  schedules       ScheduleEntry[]
+  id                 String          @id @default(cuid())
+  name               String
+  employeeId         String          @unique
+  team               Team
+  isActive           Boolean         @default(true)
+  gender             Gender          @default(MALE)
+  employmentType     String          @default("SOC_OPERATIONS")
+  environmentAccess  String[]        @default([])
+  requiresMentor     Boolean         @default(false)
+  isFixedSchedule    Boolean         @default(false)
+  mentorId           String?
+  mentor             Employee?       @relation("MentorMentees", fields: [mentorId], references: [id])
+  mentees            Employee[]      @relation("MentorMentees")
+  currentShiftTypeId String?
+  currentShiftType   ShiftType?      @relation("EmployeeBaseShift", fields: [currentShiftTypeId], references: [id], onDelete: SetNull)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  schedules          ScheduleEntry[]
 }
 
 model ShiftType {
-  id            String          @id @default(cuid())
-  name          String          @unique
-  startTime     String?         // e.g. "08:00 AM" or "6:00 AM", nullable for LEAVE / DAY-OFF / ADJUST
-  endTime       String?         // e.g. "05:00 PM" or "3:00 PM", nullable
-  colorHex      String          // e.g. "#808080" for gray
-  sortOrder     Int             @default(0)
-  schedules     ScheduleEntry[]
+  id                 String          @id @default(cuid())
+  name               String          @unique
+  startTime          String?         // e.g. "08:00 AM" or "6:00 AM", nullable for LEAVE / DAY-OFF / ADJUST
+  endTime            String?         // e.g. "05:00 PM" or "3:00 PM", nullable
+  colorHex           String          // e.g. "#808080" for gray
+  sortOrder          Int             @default(0)
+  isNightShift       Boolean         @default(false)
+  daysOfWeek         DayOfWeek[]     @default([MON, TUE, WED, THU, FRI])
+  schedules          ScheduleEntry[]
+  baseShiftEmployees Employee[]      @relation("EmployeeBaseShift")
 }
 
 model ScheduleWeek {
@@ -71,4 +89,30 @@ model ScheduleEntry {
   updatedAt      DateTime     @updatedAt
 
   @@unique([employeeId, scheduleWeekId, dayOfWeek])
+}
+
+model SchedulingRuleConfig {
+  id                    String   @id @default(cuid())
+  minRestHours          Int      @default(7)
+  recommendedRestHours  Int      @default(8)
+  maxConsecutiveDays    Int      @default(6)
+  maxWeeklyWorkdays     Int      @default(5)
+  rotationCycleDays     Int      @default(14)
+  shiftOverlapHours     Int      @default(1)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model TeamSettings {
+  team            Team     @id
+  rotationEnabled Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model JobRole {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

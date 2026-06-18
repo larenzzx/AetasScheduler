@@ -2,10 +2,16 @@
 
 import { prisma } from '@/lib/prisma';
 import { Team } from '@/types';
+import { Gender } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 
 export async function getEmployees() {
-  const emps = await prisma.employee.findMany();
+  const emps = await prisma.employee.findMany({
+    include: {
+      mentor: true,
+      mentees: true,
+    },
+  });
   return emps.sort((a, b) => (parseInt(a.employeeId, 10) || 0) - (parseInt(b.employeeId, 10) || 0));
 }
 
@@ -21,6 +27,13 @@ export async function createEmployee(data: {
   name: string;
   employeeId: string;
   team: Team;
+  gender?: Gender;
+  employmentType?: string;
+  environmentAccess?: string[];
+  requiresMentor?: boolean;
+  isFixedSchedule?: boolean;
+  mentorId?: string | null;
+  currentShiftTypeId?: string | null;
 }) {
   try {
     const employee = await prisma.employee.create({
@@ -28,6 +41,13 @@ export async function createEmployee(data: {
         name: data.name,
         employeeId: data.employeeId,
         team: data.team,
+        gender: data.gender ?? 'MALE',
+        employmentType: data.employmentType ?? 'SOC_OPERATIONS',
+        environmentAccess: data.environmentAccess ?? [],
+        requiresMentor: data.requiresMentor ?? false,
+        isFixedSchedule: data.isFixedSchedule ?? false,
+        mentorId: data.mentorId ?? null,
+        currentShiftTypeId: data.currentShiftTypeId ?? null,
         isActive: true,
       },
     });
@@ -52,6 +72,13 @@ export async function updateEmployee(
     employeeId: string;
     team: Team;
     isActive: boolean;
+    gender?: Gender;
+    employmentType?: string;
+    environmentAccess?: string[];
+    requiresMentor?: boolean;
+    isFixedSchedule?: boolean;
+    mentorId?: string | null;
+    currentShiftTypeId?: string | null;
   }
 ) {
   try {
@@ -62,6 +89,13 @@ export async function updateEmployee(
         employeeId: data.employeeId,
         team: data.team,
         isActive: data.isActive,
+        gender: data.gender,
+        employmentType: data.employmentType,
+        environmentAccess: data.environmentAccess,
+        requiresMentor: data.requiresMentor,
+        isFixedSchedule: data.isFixedSchedule,
+        mentorId: data.mentorId,
+        currentShiftTypeId: data.currentShiftTypeId,
       },
     });
     revalidatePath('/employees');

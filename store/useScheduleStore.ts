@@ -29,6 +29,9 @@ interface ScheduleState {
   activeShiftFilter: string | null;
   setActiveShiftFilter: (filter: string | null) => void;
   
+  unsavedChangesBannerHeight: number;
+  setUnsavedChangesBannerHeight: (height: number) => void;
+  
   currentUser: UserProfile | null;
   fetchCurrentUser: () => Promise<void>;
   
@@ -41,7 +44,7 @@ interface ScheduleState {
   fetchSchedule: () => Promise<void>;
   updateCell: (employeeId: string, dayOfWeek: DayOfWeek, shiftTypeId: string | null) => void;
   discardChanges: () => void;
-  saveChanges: () => Promise<void>;
+  saveChanges: () => Promise<{ success: boolean; errors: string[]; warnings: string[] } | undefined>;
   hasChanges: () => boolean;
   deleteSchedule: (team: Team) => Promise<void>;
 }
@@ -74,6 +77,8 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
   unsavedChanges: {},
   activeShiftFilter: null,
   setActiveShiftFilter: (filter) => set({ activeShiftFilter: filter }),
+  unsavedChangesBannerHeight: 0,
+  setUnsavedChangesBannerHeight: (height) => set({ unsavedChangesBannerHeight: height }),
   currentUser: null,
   fetchCurrentUser: async () => {
     const user = await getCurrentUser();
@@ -143,7 +148,7 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
 
   saveChanges: async () => {
     const { alabangWeek, zamboangaWeek, alabangRows, zamboangaRows, unsavedChanges, fetchSchedule } = get();
-    if (Object.keys(unsavedChanges).length === 0) return;
+    if (Object.keys(unsavedChanges).length === 0) return { success: true, errors: [], warnings: [] };
     
     set({ loading: true });
     try {
@@ -181,8 +186,35 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
         savePromises.push(saveScheduleEntries(zamboangaWeek.id, zamboangaUpdates));
       }
 
-      await Promise.all(savePromises);
+      const results = await Promise.all(savePromises);
+      
+      const allErrors: string[] = [];
+      const allWarnings: string[] = [];
+      
+      results.forEach((res) => {
+        if (!res.success) {
+          allErrors.push(...res.errors);
+        }
+        if (res.warnings) {
+          allWarnings.push(...res.warnings);
+        }
+      });
+
+      if (allErrors.length > 0) {
+        set({ loading: false });
+        return {
+          success: false,
+          errors: allErrors,
+          warnings: allWarnings,
+        };
+      }
+
       await fetchSchedule();
+      return {
+        success: true,
+        errors: [],
+        warnings: allWarnings,
+      };
     } catch (error) {
       console.error('Failed to save schedule entries:', error);
       set({ loading: false });
