@@ -29,13 +29,18 @@ export async function createEmployee(data: {
   team: Team;
   gender?: Gender;
   employmentType?: string;
-  environmentAccess?: string[];
+  environmentAccess?: string | string[];
+  department?: string;
   requiresMentor?: boolean;
   isFixedSchedule?: boolean;
   mentorId?: string | null;
   currentShiftTypeId?: string | null;
 }) {
   try {
+    const envAccessStr = Array.isArray(data.environmentAccess)
+      ? data.environmentAccess.join(',')
+      : (data.environmentAccess ?? '');
+
     const employee = await prisma.employee.create({
       data: {
         name: data.name,
@@ -43,7 +48,8 @@ export async function createEmployee(data: {
         team: data.team,
         gender: data.gender ?? 'MALE',
         employmentType: data.employmentType ?? 'SOC_OPERATIONS',
-        environmentAccess: data.environmentAccess ?? [],
+        environmentAccess: envAccessStr,
+        department: data.department ?? 'Operations',
         requiresMentor: data.requiresMentor ?? false,
         isFixedSchedule: data.isFixedSchedule ?? false,
         mentorId: data.mentorId ?? null,
@@ -74,7 +80,8 @@ export async function updateEmployee(
     isActive: boolean;
     gender?: Gender;
     employmentType?: string;
-    environmentAccess?: string[];
+    environmentAccess?: string | string[];
+    department?: string;
     requiresMentor?: boolean;
     isFixedSchedule?: boolean;
     mentorId?: string | null;
@@ -82,6 +89,10 @@ export async function updateEmployee(
   }
 ) {
   try {
+    const envAccessStr = Array.isArray(data.environmentAccess)
+      ? data.environmentAccess.join(',')
+      : data.environmentAccess;
+
     const employee = await prisma.employee.update({
       where: { id },
       data: {
@@ -91,7 +102,8 @@ export async function updateEmployee(
         isActive: data.isActive,
         gender: data.gender,
         employmentType: data.employmentType,
-        environmentAccess: data.environmentAccess,
+        environmentAccess: envAccessStr,
+        department: data.department,
         requiresMentor: data.requiresMentor,
         isFixedSchedule: data.isFixedSchedule,
         mentorId: data.mentorId,
@@ -127,3 +139,25 @@ export async function toggleEmployeeStatus(id: string, isActive: boolean) {
     return { success: false, error: 'Failed to toggle employee status.' };
   }
 }
+
+export async function deleteEmployee(id: string) {
+  try {
+    await prisma.$transaction([
+      prisma.employee.updateMany({
+        where: { mentorId: id },
+        data: { mentorId: null, requiresMentor: false },
+      }),
+      prisma.employee.delete({
+        where: { id },
+      }),
+    ]);
+    revalidatePath('/employees');
+    revalidatePath('/schedule');
+    revalidatePath('/');
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting employee:', error);
+    return { success: false, error: 'Failed to delete employee.' };
+  }
+}
+

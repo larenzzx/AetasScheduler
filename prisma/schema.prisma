@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
 }
 
 enum Gender {
@@ -36,8 +36,9 @@ model Employee {
   team               Team
   isActive           Boolean         @default(true)
   gender             Gender          @default(MALE)
-  employmentType     String          @default("SOC_OPERATIONS")
-  environmentAccess  String[]        @default([])
+  employmentType     String          @default("SOC_ANALYST")
+  environmentAccess  String          @default("")
+  department         String          @default("Operations")
   requiresMentor     Boolean         @default(false)
   isFixedSchedule    Boolean         @default(false)
   mentorId           String?
@@ -58,7 +59,7 @@ model ShiftType {
   colorHex           String          // e.g. "#808080" for gray
   sortOrder          Int             @default(0)
   isNightShift       Boolean         @default(false)
-  daysOfWeek         DayOfWeek[]     @default([MON, TUE, WED, THU, FRI])
+  daysOfWeek         String          @default("MON,TUE,WED,THU,FRI")
   schedules          ScheduleEntry[]
   baseShiftEmployees Employee[]      @relation("EmployeeBaseShift")
 }
@@ -111,8 +112,18 @@ model TeamSettings {
 }
 
 model JobRole {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String      @id @default(cuid())
+  name         String      @unique
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+model Department {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  jobRoles  JobRole[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
