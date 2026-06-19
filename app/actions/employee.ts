@@ -29,7 +29,7 @@ export async function createEmployee(data: {
   team: Team;
   gender?: Gender;
   employmentType?: string;
-  environmentAccess?: string | string[];
+  environmentAccess?: string[];
   department?: string;
   requiresMentor?: boolean;
   isFixedSchedule?: boolean;
@@ -37,9 +37,17 @@ export async function createEmployee(data: {
   currentShiftTypeId?: string | null;
 }) {
   try {
-    const envAccessStr = Array.isArray(data.environmentAccess)
-      ? data.environmentAccess.join(',')
-      : (data.environmentAccess ?? '');
+    // Resolve department automatically from employmentType (role) relation
+    let resolvedDepartment = data.department ?? 'OPERATIONS';
+    if (data.employmentType) {
+      const role = await prisma.jobRole.findFirst({
+        where: { name: data.employmentType },
+        include: { department: true }
+      });
+      if (role && role.department) {
+        resolvedDepartment = role.department.name;
+      }
+    }
 
     const employee = await prisma.employee.create({
       data: {
@@ -48,8 +56,8 @@ export async function createEmployee(data: {
         team: data.team,
         gender: data.gender ?? 'MALE',
         employmentType: data.employmentType ?? 'SOC_OPERATIONS',
-        environmentAccess: envAccessStr,
-        department: data.department ?? 'Operations',
+        environmentAccess: data.environmentAccess ?? [],
+        department: resolvedDepartment,
         requiresMentor: data.requiresMentor ?? false,
         isFixedSchedule: data.isFixedSchedule ?? false,
         mentorId: data.mentorId ?? null,
@@ -80,7 +88,7 @@ export async function updateEmployee(
     isActive: boolean;
     gender?: Gender;
     employmentType?: string;
-    environmentAccess?: string | string[];
+    environmentAccess?: string[];
     department?: string;
     requiresMentor?: boolean;
     isFixedSchedule?: boolean;
@@ -89,9 +97,17 @@ export async function updateEmployee(
   }
 ) {
   try {
-    const envAccessStr = Array.isArray(data.environmentAccess)
-      ? data.environmentAccess.join(',')
-      : data.environmentAccess;
+    // Resolve department automatically from employmentType (role) relation if provided
+    let resolvedDepartment = data.department;
+    if (data.employmentType) {
+      const role = await prisma.jobRole.findFirst({
+        where: { name: data.employmentType },
+        include: { department: true }
+      });
+      if (role && role.department) {
+        resolvedDepartment = role.department.name;
+      }
+    }
 
     const employee = await prisma.employee.update({
       where: { id },
@@ -102,8 +118,8 @@ export async function updateEmployee(
         isActive: data.isActive,
         gender: data.gender,
         employmentType: data.employmentType,
-        environmentAccess: envAccessStr,
-        department: data.department,
+        environmentAccess: data.environmentAccess,
+        department: resolvedDepartment,
         requiresMentor: data.requiresMentor,
         isFixedSchedule: data.isFixedSchedule,
         mentorId: data.mentorId,

@@ -140,3 +140,89 @@ export async function deleteDepartment(id: string) {
     return { success: false, error: 'Failed to delete department.' };
   }
 }
+
+export async function assignEmployeesToDepartment(departmentName: string, selectedEmployeeIds: string[]) {
+  try {
+    const dept = await prisma.department.findUnique({
+      where: { name: departmentName }
+    });
+    if (!dept) {
+      return { success: false, error: 'Department not found.' };
+    }
+
+    // 1. Reset all employees currently in this department who are NOT in selectedEmployeeIds to 'OPERATIONS'
+    await prisma.employee.updateMany({
+      where: { 
+        department: departmentName,
+        id: { notIn: selectedEmployeeIds }
+      },
+      data: { department: 'OPERATIONS' }
+    });
+
+    // 2. Set all selectedEmployeeIds to this department
+    if (selectedEmployeeIds.length > 0) {
+      await prisma.employee.updateMany({
+        where: { id: { in: selectedEmployeeIds } },
+        data: { department: departmentName }
+      });
+
+      // 3. Sync the job roles of the selected employees to this department
+      const employees = await prisma.employee.findMany({
+        where: { id: { in: selectedEmployeeIds } },
+        select: { employmentType: true }
+      });
+      const roleNames = Array.from(new Set(employees.map(e => e.employmentType)));
+      if (roleNames.length > 0) {
+        await prisma.jobRole.updateMany({
+          where: { name: { in: roleNames } },
+          data: { departmentId: dept.id }
+        });
+      }
+    }
+
+    revalidatePath('/settings');
+    revalidatePath('/employees');
+    revalidatePath('/departments');
+    revalidatePath('/schedule');
+    revalidatePath('/');
+    return { success: true };
+  } catch (error) {
+    console.error('Error assigning employees to department:', error);
+    return { success: false, error: 'Failed to assign employees.' };
+  }
+}
+
+export async function moveEmployeeToDepartment(employeeId: string, departmentName: string) {
+  try {
+    const dept = await prisma.department.findUnique({
+      where: { name: departmentName }
+    });
+    if (!dept) {
+      return { success: false, error: 'Department not found.' };
+    }
+    const employee = await prisma.employee.update({
+      where: { id: employeeId },
+      data: { department: departmentName }
+    });
+    
+    // Sync job role if necessary
+    const roleName = employee.employmentType;
+    if (roleName) {
+      await prisma.jobRole.updateMany({
+        where: { name: roleName },
+        data: { departmentId: dept.id }
+      });
+    }
+
+    revalidatePath('/settings');
+    revalidatePath('/employees');
+    revalidatePath('/departments');
+    revalidatePath('/schedule');
+    revalidatePath('/');
+    return { success: true, employee };
+  } catch (error) {
+    console.error('Error moving employee to department:', error);
+    return { success: false, error: 'Failed to move employee.' };
+  }
+}
+

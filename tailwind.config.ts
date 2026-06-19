@@ -46,6 +46,10 @@ const config: Config = {
           ring: "var(--sidebar-ring)",
         },
       },
+      fontFamily: {
+        sans: ["var(--font-sans)", "sans-serif"],
+        heading: ["var(--font-heading)", "sans-serif"],
+      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",

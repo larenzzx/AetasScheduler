@@ -12,8 +12,8 @@
 
 @layer base {
   .theme {
-    --font-heading: var(--font-sans);
-    --font-sans: var(--font-sans);
+    --font-heading: var(--font-heading), sans-serif;
+    --font-sans: var(--font-sans), sans-serif;
   }
 
   /* Force dark mode brand color guidelines everywhere */
@@ -65,6 +65,11 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
   }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading), sans-serif;
+    @apply tracking-tight font-semibold;
+  }
 }
 
 /* OVERRIDE COMMONLY USED LIGHT UTILITIES TO COMPLY WITH BRAND PALETTE */
@@ -97,11 +102,21 @@
 }
 
 .text-slate-500, .text-slate-600 {
-  color: rgba(17, 180, 212, 0.6) !important; /* Charged Blue at 60% opacity */
+  color: #CBD5E1 !important; /* Extremely high contrast Slate-300 for readable secondary/muted text */
 }
 
 .text-slate-400 {
-  color: rgba(17, 180, 212, 0.5) !important;
+  color: #E2E8F0 !important; /* Bright Slate-200 for sub-labels and small form headings */
+}
+
+/* Override browser default styles for disabled form controls to maintain contrast */
+input:disabled,
+select:disabled,
+textarea:disabled {
+  opacity: 0.75 !important;
+  color: #E2E8F0 !important;
+  background-color: rgba(17, 180, 212, 0.06) !important;
+  cursor: not-allowed !important;
 }
 
 /* Hover overlays */
@@ -201,6 +216,16 @@ textarea {
   border-color: rgba(17, 180, 212, 0.3) !important;
 }
 
+select option {
+  background-color: #080C1A !important;
+  color: #FFFFFF !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgba(255, 255, 255, 0.4) !important;
+}
+
 input[type="text"]:focus,
 input[type="email"]:focus,
 input[type="password"]:focus,
@@ -216,4 +241,17 @@ textarea:focus {
 /* Make calendar picker indicator icon white for dark background visibility */
 input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(1);
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 12s linear infinite;
 }

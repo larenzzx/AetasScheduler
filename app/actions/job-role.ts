@@ -36,6 +36,42 @@ export async function getJobRoles() {
       });
     }
 
+    // Auto-map existing roles to default departments if they have departmentId as null
+    const unmappedRoles = roles.filter((r) => r.departmentId === null);
+    if (unmappedRoles.length > 0) {
+      const cybersec = await prisma.department.upsert({ where: { name: 'CYBERSECURITY' }, update: {}, create: { name: 'CYBERSECURITY' } });
+      const itSupport = await prisma.department.upsert({ where: { name: 'IT_SUPPORT' }, update: {}, create: { name: 'IT_SUPPORT' } });
+      const operations = await prisma.department.upsert({ where: { name: 'OPERATIONS' }, update: {}, create: { name: 'OPERATIONS' } });
+      const graphicDesign = await prisma.department.upsert({ where: { name: 'GRAPHIC_DESIGN' }, update: {}, create: { name: 'GRAPHIC_DESIGN' } });
+
+      const roleMappings: Record<string, string> = {
+        'SOC_ANALYST': cybersec.id,
+        'SOC_OPERATIONS': cybersec.id,
+        'DESIGNER': graphicDesign.id,
+        'IT_SUPPORT': itSupport.id,
+        'OTHER': operations.id
+      };
+
+      let updatedAny = false;
+      for (const role of unmappedRoles) {
+        const targetDeptId = roleMappings[role.name];
+        if (targetDeptId) {
+          await prisma.jobRole.update({
+            where: { id: role.id },
+            data: { departmentId: targetDeptId }
+          });
+          updatedAny = true;
+        }
+      }
+
+      if (updatedAny) {
+        roles = await prisma.jobRole.findMany({
+          orderBy: { name: 'asc' },
+          include: { department: true }
+        });
+      }
+    }
+
     return roles;
   } catch (error) {
     console.error('Error fetching job roles:', error);
@@ -105,6 +141,17 @@ export async function updateJobRole(id: string, name: string, departmentId?: str
       return { success: false, error: 'Job role not found.' };
     }
 
+    // Determine the department name to update employees
+    let resolvedDepartmentName = 'OPERATIONS';
+    if (departmentId) {
+      const dept = await prisma.department.findUnique({
+        where: { id: departmentId }
+      });
+      if (dept) {
+        resolvedDepartmentName = dept.name;
+      }
+    }
+
     // Update in transaction to update affected employees
     const [jobRole] = await prisma.$transaction([
       prisma.jobRole.update({
@@ -116,7 +163,10 @@ export async function updateJobRole(id: string, name: string, departmentId?: str
       }),
       prisma.employee.updateMany({
         where: { employmentType: oldRole.name },
-        data: { employmentType: formattedName },
+        data: { 
+          employmentType: formattedName,
+          ...(departmentId !== undefined ? { department: resolvedDepartmentName } : {})
+        },
       }),
     ]);
 

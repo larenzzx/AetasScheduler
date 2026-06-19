@@ -1,14 +1,21 @@
 import type { Metadata } from "next";
-import { DM_Sans } from "next/font/google";
+
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import ResponsiveLayoutShell from "@/components/ResponsiveLayoutShell";
 import UnsavedChangesBanner from "@/components/UnsavedChangesBanner";
 import { Toaster } from "@/components/ui/sonner";
 
-const dmSans = DM_Sans({
+import { Inter, Outfit } from "next/font/google";
+
+const inter = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
+});
+
+const outfit = Outfit({
+  subsets: ["latin"],
+  variable: "--font-heading",
 });
 
 export const metadata: Metadata = {
@@ -27,7 +34,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={cn("font-sans dark", dmSans.variable)}>
+    <html lang="en" className={cn("font-sans dark", inter.variable, outfit.variable)}>
       <body className="antialiased bg-background text-foreground min-h-screen">
         {/* Responsive Layout Shell with sidebar toggle */}
         <ResponsiveLayoutShell>

@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 enum Gender {
@@ -37,8 +37,8 @@ model Employee {
   isActive           Boolean         @default(true)
   gender             Gender          @default(MALE)
   employmentType     String          @default("SOC_ANALYST")
-  environmentAccess  String          @default("")
-  department         String          @default("Operations")
+  environmentAccess  String[]        @default([])
+  department         String          @default("OPERATIONS")
   requiresMentor     Boolean         @default(false)
   isFixedSchedule    Boolean         @default(false)
   mentorId           String?
@@ -59,7 +59,7 @@ model ShiftType {
   colorHex           String          // e.g. "#808080" for gray
   sortOrder          Int             @default(0)
   isNightShift       Boolean         @default(false)
-  daysOfWeek         String          @default("MON,TUE,WED,THU,FRI")
+  daysOfWeek         DayOfWeek[]     @default([MON, TUE, WED, THU, FRI])
   schedules          ScheduleEntry[]
   baseShiftEmployees Employee[]      @relation("EmployeeBaseShift")
 }

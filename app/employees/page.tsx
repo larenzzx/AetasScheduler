@@ -200,7 +200,12 @@ export default function EmployeesPage() {
     setEditGender(employee.gender || 'MALE');
     setEditEmploymentType(employee.employmentType || 'SOC_ANALYST');
     setEditCurrentShiftTypeId(employee.currentShiftTypeId || 'NONE');
-    setEditDepartment(employee.department || 'OPERATIONS');
+    
+    // Resolve correct department from role automatically
+    const role = jobRoles.find((r) => r.name === employee.employmentType);
+    const resolvedDept = (role && role.department) ? role.department.name : (employee.department || 'OPERATIONS');
+    setEditDepartment(resolvedDept);
+
     setEditError(null);
     setEditOpen(true);
   };
@@ -319,6 +324,8 @@ export default function EmployeesPage() {
     const selectedRole = jobRoles.find((r) => r.name === val);
     if (selectedRole && selectedRole.department) {
       setNewDepartment(selectedRole.department.name);
+    } else {
+      setNewDepartment('OPERATIONS');
     }
   };
 
@@ -327,6 +334,8 @@ export default function EmployeesPage() {
     const selectedRole = jobRoles.find((r) => r.name === val);
     if (selectedRole && selectedRole.department) {
       setEditDepartment(selectedRole.department.name);
+    } else {
+      setEditDepartment('OPERATIONS');
     }
   };
 
@@ -344,7 +353,7 @@ export default function EmployeesPage() {
       (statusFilter === 'ACTIVE' && emp.isActive) || 
       (statusFilter === 'INACTIVE' && !emp.isActive);
 
-    const matchesDepartment = departmentFilter === 'ALL' || emp.department === departmentFilter;
+    const matchesDepartment = departmentFilter === 'ALL' || emp.department.toUpperCase() === departmentFilter.toUpperCase();
 
     return matchesSearch && matchesTeam && matchesStatus && matchesDepartment;
   });
