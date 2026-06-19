@@ -14,7 +14,8 @@ import {
   Settings,
   ChevronRight,
   X,
-  LogOut
+  LogOut,
+  Building2
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -31,6 +32,7 @@ const navItems = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Schedule', href: '/schedule', icon: Calendar },
   { name: 'Employees', href: '/employees', icon: Users },
+  { name: 'Departments', href: '/departments', icon: Building2 },
   { name: 'Shift Types', href: '/shift-types', icon: Clock },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];

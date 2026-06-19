@@ -7,6 +7,7 @@ import { Settings, Building2, Calendar, Clock, RotateCw, Save, User, Loader2, Br
 import { toast } from 'sonner';
 import { updateAccountDetails } from '@/app/actions/auth';
 import { getTeamSettings, updateTeamSettings } from '@/app/actions/schedule';
+import { getDepartments } from '@/app/actions/department';
 import { getJobRoles, createJobRole, updateJobRole, deleteJobRole } from '@/app/actions/job-role';
 
 export default function SettingsPage() {
@@ -20,10 +21,13 @@ export default function SettingsPage() {
   const [zamboangaRotation, setZamboangaRotation] = useState(true);
 
   // Job Role States
-  const [jobRoles, setJobRoles] = useState<Array<{ id: string; name: string }>>([]);
+  const [jobRoles, setJobRoles] = useState<Array<{ id: string; name: string; departmentId: string | null; department?: { id: string; name: string } | null }>>([]);
+  const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([]);
   const [newRoleName, setNewRoleName] = useState('');
+  const [newRoleDeptId, setNewRoleDeptId] = useState<string>('');
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
   const [editingRoleName, setEditingRoleName] = useState('');
+  const [editingRoleDeptId, setEditingRoleDeptId] = useState<string>('');
   const [rolesLoading, setRolesLoading] = useState(false);
 
   const fetchRoles = async () => {
@@ -35,9 +39,22 @@ export default function SettingsPage() {
     }
   };
 
+  const fetchDepartments = async () => {
+    try {
+      const depts = await getDepartments();
+      setDepartments(depts);
+      if (depts.length > 0) {
+        setNewRoleDeptId(depts[0].id);
+      }
+    } catch (error) {
+      console.error('Failed to fetch departments:', error);
+    }
+  };
+
   useEffect(() => {
     fetchCurrentUser();
     fetchRoles();
+    fetchDepartments();
   }, [fetchCurrentUser]);
 
   useEffect(() => {
@@ -61,7 +78,7 @@ export default function SettingsPage() {
 
     setRolesLoading(true);
     try {
-      const res = await createJobRole(newRoleName);
+      const res = await createJobRole(newRoleName, newRoleDeptId || null);
       if (res.success) {
         toast.success('Job role created successfully!');
         setNewRoleName('');
@@ -82,11 +99,12 @@ export default function SettingsPage() {
 
     setRolesLoading(true);
     try {
-      const res = await updateJobRole(id, editingRoleName);
+      const res = await updateJobRole(id, editingRoleName, editingRoleDeptId || null);
       if (res.success) {
         toast.success('Job role updated successfully!');
         setEditingRoleId(null);
         setEditingRoleName('');
+        setEditingRoleDeptId('');
         await fetchRoles();
       } else {
         toast.error(res.error || 'Failed to update job role.');
@@ -189,7 +207,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="space-y-8 max-w-4xl animate-in fade-in duration-300">
+    <div className="space-y-6">
       {/* Header Row */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
         <div className="space-y-1">
@@ -339,7 +357,7 @@ export default function SettingsPage() {
             <Button
               type="submit"
               disabled={globalLoading}
-              className="h-10 px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-2"
+              className="h-10 px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-2 rounded-lg transition-all shadow-md shadow-emerald-600/10"
             >
               {globalLoading ? (
                 <>
@@ -373,7 +391,7 @@ export default function SettingsPage() {
             </p>
 
             {/* Add Job Role Form */}
-            <form onSubmit={handleCreateRole} className="flex gap-3 items-center">
+            <form onSubmit={handleCreateRole} className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
               <input
                 type="text"
                 value={newRoleName}
@@ -382,10 +400,22 @@ export default function SettingsPage() {
                 className="flex-1 h-10 px-3 rounded-lg border border-slate-200 bg-slate-50/50 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
                 disabled={rolesLoading}
               />
+              <select
+                value={newRoleDeptId}
+                onChange={(e) => setNewRoleDeptId(e.target.value)}
+                className="h-10 px-3 rounded-lg border border-slate-200 bg-slate-50/50 text-sm text-slate-800 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
+                disabled={rolesLoading}
+              >
+                {departments.map((dept) => (
+                  <option key={dept.id} value={dept.id}>
+                    {dept.name.replace(/_/g, ' ')}
+                  </option>
+                ))}
+              </select>
               <Button
                 type="submit"
-                disabled={rolesLoading || !newRoleName.trim()}
-                className="h-10 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-1.5 shrink-0"
+                disabled={rolesLoading || !newRoleName.trim() || departments.length === 0}
+                className="h-10 px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center justify-center gap-1.5 shrink-0 rounded-lg transition-all"
               >
                 <Plus className="h-4 w-4" />
                 Add Role
@@ -406,7 +436,7 @@ export default function SettingsPage() {
                       className="flex items-center justify-between p-3.5 rounded-lg border border-slate-100 bg-slate-50/30 hover:bg-slate-50/70 transition-all"
                     >
                       {editingRoleId === role.id ? (
-                        <div className="flex items-center gap-2 w-full">
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full">
                           <input
                             type="text"
                             value={editingRoleName}
@@ -415,35 +445,57 @@ export default function SettingsPage() {
                             disabled={rolesLoading}
                             autoFocus
                           />
-                          <Button
-                            size="sm"
-                            type="button"
-                            onClick={() => handleUpdateRole(role.id)}
-                            disabled={rolesLoading || !editingRoleName.trim() || editingRoleName.trim().toUpperCase().replace(/\s+/g, '_') === role.name}
-                            className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold"
-                          >
-                            Save
-                          </Button>
-                          <Button
-                            size="sm"
-                            type="button"
-                            variant="outline"
-                            onClick={() => {
-                              setEditingRoleId(null);
-                              setEditingRoleName('');
-                            }}
+                          <select
+                            value={editingRoleDeptId}
+                            onChange={(e) => setEditingRoleDeptId(e.target.value)}
+                            className="h-9 px-2.5 rounded border border-slate-200 bg-white text-xs text-slate-800 focus:outline-none"
                             disabled={rolesLoading}
-                            className="h-8 border-slate-200 text-slate-500 text-[11px] font-bold"
                           >
-                            Cancel
-                          </Button>
+                            {departments.map((dept) => (
+                              <option key={dept.id} value={dept.id}>
+                                {dept.name.replace(/_/g, ' ')}
+                              </option>
+                            ))}
+                          </select>
+                          <div className="flex gap-1.5 shrink-0">
+                            <Button
+                              size="sm"
+                              type="button"
+                              onClick={() => handleUpdateRole(role.id)}
+                              disabled={rolesLoading || !editingRoleName.trim() || (editingRoleName.trim().toUpperCase().replace(/\s+/g, '_') === role.name && editingRoleDeptId === role.departmentId)}
+                              className="h-8 flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold px-3 rounded-lg transition-all"
+                            >
+                              Save
+                            </Button>
+                            <Button
+                              size="sm"
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                setEditingRoleId(null);
+                                setEditingRoleName('');
+                                setEditingRoleDeptId('');
+                              }}
+                              disabled={rolesLoading}
+                              className="h-8 flex-1 sm:flex-none border-slate-200 text-slate-500 text-[11px] font-bold"
+                            >
+                              Cancel
+                            </Button>
+                          </div>
                         </div>
                       ) : (
                         <>
-                          <div className="space-y-0.5">
-                            <span className="font-bold text-xs text-slate-700 tracking-wider">
-                              {role.name.replace(/_/g, ' ')}
-                            </span>
+                          <div className="space-y-1">
+                            <div className="flex items-center flex-wrap gap-2">
+                              <span className="font-bold text-xs text-slate-700 tracking-wider">
+                                {role.name.replace(/_/g, ' ')}
+                              </span>
+                              {role.department && (
+                                <span className="text-[9px] bg-emerald-50 border border-emerald-200 text-emerald-700 font-extrabold px-1.5 py-0.2 rounded uppercase tracking-wider">
+                                  {role.department.name.replace(/_/g, ' ')}
+                                </span>
+                              )}
+                            </div>
                             <span className="block text-[10px] text-slate-400">
                               Code: {role.name}
                             </span>
@@ -457,6 +509,7 @@ export default function SettingsPage() {
                               onClick={() => {
                                 setEditingRoleId(role.id);
                                 setEditingRoleName(role.name.replace(/_/g, ' '));
+                                setEditingRoleDeptId(role.departmentId || '');
                               }}
                               disabled={rolesLoading}
                               className="h-8 border-slate-200 text-slate-600 hover:bg-slate-50 px-2.5"
@@ -568,7 +621,7 @@ export default function SettingsPage() {
             <Button
               type="submit"
               disabled={accountLoading}
-              className="h-10 px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-2"
+              className="h-10 px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold flex items-center gap-2 rounded-lg transition-all shadow-md shadow-emerald-600/10"
             >
               {accountLoading ? (
                 <>

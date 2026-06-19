@@ -7,18 +7,69 @@ export async function getJobRoles() {
   try {
     let roles = await prisma.jobRole.findMany({
       orderBy: { name: 'asc' },
+      include: { department: true }
     });
 
     if (roles.length === 0) {
-      const defaults = ['SOC_OPERATIONS', 'DESIGNER', 'IT_SUPPORT', 'OTHER'];
-      await prisma.jobRole.createMany({
-        data: defaults.map((name) => ({ name })),
-        skipDuplicates: true,
-      });
+      // Ensure default departments exist first
+      const cybersec = await prisma.department.upsert({ where: { name: 'CYBERSECURITY' }, update: {}, create: { name: 'CYBERSECURITY' } });
+      const itSupport = await prisma.department.upsert({ where: { name: 'IT_SUPPORT' }, update: {}, create: { name: 'IT_SUPPORT' } });
+      const operations = await prisma.department.upsert({ where: { name: 'OPERATIONS' }, update: {}, create: { name: 'OPERATIONS' } });
+      const graphicDesign = await prisma.department.upsert({ where: { name: 'GRAPHIC_DESIGN' }, update: {}, create: { name: 'GRAPHIC_DESIGN' } });
+
+      const defaults = [
+        { name: 'SOC_ANALYST', departmentId: cybersec.id },
+        { name: 'DESIGNER', departmentId: graphicDesign.id },
+        { name: 'IT_SUPPORT', departmentId: itSupport.id },
+        { name: 'OTHER', departmentId: operations.id }
+      ];
+
+      for (const role of defaults) {
+        await prisma.jobRole.create({
+          data: role
+        });
+      }
 
       roles = await prisma.jobRole.findMany({
         orderBy: { name: 'asc' },
+        include: { department: true }
       });
+    }
+
+    // Auto-map existing roles to default departments if they have departmentId as null
+    const unmappedRoles = roles.filter((r) => r.departmentId === null);
+    if (unmappedRoles.length > 0) {
+      const cybersec = await prisma.department.upsert({ where: { name: 'CYBERSECURITY' }, update: {}, create: { name: 'CYBERSECURITY' } });
+      const itSupport = await prisma.department.upsert({ where: { name: 'IT_SUPPORT' }, update: {}, create: { name: 'IT_SUPPORT' } });
+      const operations = await prisma.department.upsert({ where: { name: 'OPERATIONS' }, update: {}, create: { name: 'OPERATIONS' } });
+      const graphicDesign = await prisma.department.upsert({ where: { name: 'GRAPHIC_DESIGN' }, update: {}, create: { name: 'GRAPHIC_DESIGN' } });
+
+      const roleMappings: Record<string, string> = {
+        'SOC_ANALYST': cybersec.id,
+        'SOC_OPERATIONS': cybersec.id,
+        'DESIGNER': graphicDesign.id,
+        'IT_SUPPORT': itSupport.id,
+        'OTHER': operations.id
+      };
+
+      let updatedAny = false;
+      for (const role of unmappedRoles) {
+        const targetDeptId = roleMappings[role.name];
+        if (targetDeptId) {
+          await prisma.jobRole.update({
+            where: { id: role.id },
+            data: { departmentId: targetDeptId }
+          });
+          updatedAny = true;
+        }
+      }
+
+      if (updatedAny) {
+        roles = await prisma.jobRole.findMany({
+          orderBy: { name: 'asc' },
+          include: { department: true }
+        });
+      }
     }
 
     return roles;
@@ -28,7 +79,7 @@ export async function getJobRoles() {
   }
 }
 
-export async function createJobRole(name: string) {
+export async function createJobRole(name: string, departmentId?: string | null) {
   try {
     const formattedName = name.trim().toUpperCase().replace(/\s+/g, '_');
     if (!formattedName) {
@@ -45,7 +96,10 @@ export async function createJobRole(name: string) {
     }
 
     const jobRole = await prisma.jobRole.create({
-      data: { name: formattedName },
+      data: { 
+        name: formattedName,
+        departmentId: departmentId || null
+      },
     });
 
     revalidatePath('/settings');
@@ -59,7 +113,7 @@ export async function createJobRole(name: string) {
   }
 }
 
-export async function updateJobRole(id: string, name: string) {
+export async function updateJobRole(id: string, name: string, departmentId?: string | null) {
   try {
     const formattedName = name.trim().toUpperCase().replace(/\s+/g, '_');
     if (!formattedName) {
@@ -87,15 +141,32 @@ export async function updateJobRole(id: string, name: string) {
       return { success: false, error: 'Job role not found.' };
     }
 
+    // Determine the department name to update employees
+    let resolvedDepartmentName = 'OPERATIONS';
+    if (departmentId) {
+      const dept = await prisma.department.findUnique({
+        where: { id: departmentId }
+      });
+      if (dept) {
+        resolvedDepartmentName = dept.name;
+      }
+    }
+
     // Update in transaction to update affected employees
     const [jobRole] = await prisma.$transaction([
       prisma.jobRole.update({
         where: { id },
-        data: { name: formattedName },
+        data: { 
+          name: formattedName,
+          departmentId: departmentId !== undefined ? departmentId : undefined
+        },
       }),
       prisma.employee.updateMany({
         where: { employmentType: oldRole.name },
-        data: { employmentType: formattedName },
+        data: { 
+          employmentType: formattedName,
+          ...(departmentId !== undefined ? { department: resolvedDepartmentName } : {})
+        },
       }),
     ]);
 

@@ -6,9 +6,11 @@ import {
   createEmployee, 
   updateEmployee, 
   toggleEmployeeStatus,
-  getActiveShiftTypes
+  getActiveShiftTypes,
+  deleteEmployee
 } from '@/app/actions/employee';
 import { getJobRoles } from '@/app/actions/job-role';
+import { getDepartments } from '@/app/actions/department';
 import { Employee, Team, ShiftType } from '@/types';
 import { Gender } from '@prisma/client';
 import { Button } from '@/components/ui/button';
@@ -39,7 +41,8 @@ import {
   UserX, 
   Loader2,
   AlertCircle,
-  HelpCircle
+  HelpCircle,
+  Trash2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -51,9 +54,11 @@ export default function EmployeesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [teamFilter, setTeamFilter] = useState<'ALL' | 'ALABANG' | 'ZAMBOANGA'>('ALL');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
+  const [departmentFilter, setDepartmentFilter] = useState<string>('ALL');
 
   const [shiftTypes, setShiftTypes] = useState<ShiftType[]>([]);
-  const [jobRoles, setJobRoles] = useState<Array<{ id: string; name: string }>>([]);
+  const [jobRoles, setJobRoles] = useState<Array<{ id: string; name: string; departmentId: string | null; department?: { id: string; name: string } | null }>>([]);
+  const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([]);
 
   // Add Employee states
   const [addOpen, setAddOpen] = useState(false);
@@ -65,8 +70,9 @@ export default function EmployeesPage() {
   const [newRequiresMentor, setNewRequiresMentor] = useState(false);
   const [newMentorId, setNewMentorId] = useState<string>('NONE');
   const [newGender, setNewGender] = useState<Gender>('MALE');
-  const [newEmploymentType, setNewEmploymentType] = useState<string>('SOC_OPERATIONS');
+  const [newEmploymentType, setNewEmploymentType] = useState<string>('SOC_ANALYST');
   const [newCurrentShiftTypeId, setNewCurrentShiftTypeId] = useState<string>('NONE');
+  const [newDepartment, setNewDepartment] = useState<string>('OPERATIONS');
 
   // Edit Employee states
   const [editOpen, setEditOpen] = useState(false);
@@ -80,28 +86,40 @@ export default function EmployeesPage() {
   const [editRequiresMentor, setEditRequiresMentor] = useState(false);
   const [editMentorId, setEditMentorId] = useState<string>('NONE');
   const [editGender, setEditGender] = useState<Gender>('MALE');
-  const [editEmploymentType, setEditEmploymentType] = useState<string>('SOC_OPERATIONS');
+  const [editEmploymentType, setEditEmploymentType] = useState<string>('SOC_ANALYST');
   const [editCurrentShiftTypeId, setEditCurrentShiftTypeId] = useState<string>('NONE');
+  const [editDepartment, setEditDepartment] = useState<string>('OPERATIONS');
 
   // Deactivate confirmation modal states
   const [deactivateOpen, setDeactivateOpen] = useState(false);
   const [employeeToDeactivate, setEmployeeToDeactivate] = useState<Employee | null>(null);
   const [deactivateLoading, setDeactivateLoading] = useState(false);
 
+  // Delete confirmation modal states
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
   // Load initial data
   const loadData = useCallback(async () => {
     try {
-      const [emps, shifts, roles] = await Promise.all([
+      const [emps, shifts, roles, depts] = await Promise.all([
         getEmployees(),
         getActiveShiftTypes(),
-        getJobRoles()
+        getJobRoles(),
+        getDepartments()
       ]);
       setEmployees(emps);
       setShiftTypes(shifts);
       setJobRoles(roles);
+      setDepartments(depts);
 
       if (roles.length > 0) {
         setNewEmploymentType((prev) => roles.some((r) => r.name === prev) ? prev : roles[0].name);
+      }
+
+      if (depts.length > 0) {
+        setNewDepartment((prev) => depts.some((d) => d.name === prev) ? prev : depts[0].name);
       }
     } catch (error) {
       console.error('Failed to load employee data:', error);
@@ -140,6 +158,7 @@ export default function EmployeesPage() {
         mentorId: newMentorId === 'NONE' ? null : newMentorId,
         gender: newGender,
         employmentType: newEmploymentType,
+        department: newDepartment,
         currentShiftTypeId: newCurrentShiftTypeId === 'NONE' ? null : newCurrentShiftTypeId,
       });
 
@@ -153,8 +172,9 @@ export default function EmployeesPage() {
         setNewRequiresMentor(false);
         setNewMentorId('NONE');
         setNewGender('MALE');
-        setNewEmploymentType('SOC_OPERATIONS');
+        setNewEmploymentType('SOC_ANALYST');
         setNewCurrentShiftTypeId('NONE');
+        setNewDepartment(departments[0]?.name || 'OPERATIONS');
         // Reload list
         loadData();
       } else {
@@ -178,8 +198,14 @@ export default function EmployeesPage() {
     setEditRequiresMentor(employee.requiresMentor || false);
     setEditMentorId(employee.mentorId || 'NONE');
     setEditGender(employee.gender || 'MALE');
-    setEditEmploymentType(employee.employmentType || 'SOC_OPERATIONS');
+    setEditEmploymentType(employee.employmentType || 'SOC_ANALYST');
     setEditCurrentShiftTypeId(employee.currentShiftTypeId || 'NONE');
+    
+    // Resolve correct department from role automatically
+    const role = jobRoles.find((r) => r.name === employee.employmentType);
+    const resolvedDept = (role && role.department) ? role.department.name : (employee.department || 'OPERATIONS');
+    setEditDepartment(resolvedDept);
+
     setEditError(null);
     setEditOpen(true);
   };
@@ -211,6 +237,7 @@ export default function EmployeesPage() {
         mentorId: editMentorId === 'NONE' ? null : editMentorId,
         gender: editGender,
         employmentType: editEmploymentType,
+        department: editDepartment,
         currentShiftTypeId: editCurrentShiftTypeId === 'NONE' ? null : editCurrentShiftTypeId,
       });
 
@@ -271,6 +298,47 @@ export default function EmployeesPage() {
     }
   };
 
+  const handleDeleteConfirm = async () => {
+    if (!employeeToDelete) return;
+    setDeleteLoading(true);
+    try {
+      const response = await deleteEmployee(employeeToDelete.id);
+      if (response.success) {
+        toast.success(`Successfully deleted ${employeeToDelete.name}`);
+        loadData();
+        setDeleteOpen(false);
+        setEmployeeToDelete(null);
+      } else {
+        toast.error(response.error || 'Failed to delete employee.');
+      }
+    } catch (error) {
+      console.error('Error deleting employee:', error);
+      toast.error('An unexpected error occurred.');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleNewRoleChange = (val: string) => {
+    setNewEmploymentType(val);
+    const selectedRole = jobRoles.find((r) => r.name === val);
+    if (selectedRole && selectedRole.department) {
+      setNewDepartment(selectedRole.department.name);
+    } else {
+      setNewDepartment('OPERATIONS');
+    }
+  };
+
+  const handleEditRoleChange = (val: string) => {
+    setEditEmploymentType(val);
+    const selectedRole = jobRoles.find((r) => r.name === val);
+    if (selectedRole && selectedRole.department) {
+      setEditDepartment(selectedRole.department.name);
+    } else {
+      setEditDepartment('OPERATIONS');
+    }
+  };
+
   // Filter logic
   const filteredEmployees = employees.filter((emp) => {
     const query = searchQuery.toLowerCase().trim();
@@ -285,7 +353,9 @@ export default function EmployeesPage() {
       (statusFilter === 'ACTIVE' && emp.isActive) || 
       (statusFilter === 'INACTIVE' && !emp.isActive);
 
-    return matchesSearch && matchesTeam && matchesStatus;
+    const matchesDepartment = departmentFilter === 'ALL' || emp.department.toUpperCase() === departmentFilter.toUpperCase();
+
+    return matchesSearch && matchesTeam && matchesStatus && matchesDepartment;
   });
 
   return (
@@ -389,6 +459,34 @@ export default function EmployeesPage() {
                   </Select>
                 </div>
 
+                {/* Department Selection */}
+                <div className="grid gap-2">
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Department
+                  </label>
+                  <Select 
+                    value={newDepartment} 
+                    onValueChange={(val) => { if (val) setNewDepartment(val); }}
+                  >
+                    <SelectTrigger className="border-slate-200 text-slate-800 w-full">
+                      <SelectValue placeholder="Select Department">
+                        {(value) => {
+                          if (!value) return 'Select Department';
+                          const dept = departments.find((d) => d.name === value);
+                          return dept ? dept.name.replace(/_/g, ' ') : value.replace(/_/g, ' ');
+                        }}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border-slate-200">
+                      {departments.map((dept) => (
+                        <SelectItem key={dept.id} value={dept.name} className="hover:bg-slate-50">
+                          {dept.name.replace(/_/g, ' ')}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 {/* Gender */}
                 <div className="grid gap-2">
                   <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -421,7 +519,7 @@ export default function EmployeesPage() {
                   </label>
                   <Select 
                     value={newEmploymentType} 
-                    onValueChange={(val) => { if (val) setNewEmploymentType(val); }}
+                    onValueChange={(val) => { if (val) handleNewRoleChange(val); }}
                   >
                     <SelectTrigger className="border-slate-200 text-slate-800 w-full">
                       <SelectValue placeholder="Select Role">
@@ -435,7 +533,7 @@ export default function EmployeesPage() {
                     <SelectContent className="bg-white border-slate-200">
                       {jobRoles.length === 0 ? (
                         <>
-                          <SelectItem value="SOC_OPERATIONS" className="hover:bg-slate-50">SOC Operations</SelectItem>
+                          <SelectItem value="SOC_ANALYST" className="hover:bg-slate-50">SOC Analyst</SelectItem>
                           <SelectItem value="DESIGNER" className="hover:bg-slate-50">Designer</SelectItem>
                           <SelectItem value="IT_SUPPORT" className="hover:bg-slate-50">IT Support</SelectItem>
                           <SelectItem value="OTHER" className="hover:bg-slate-50">Other</SelectItem>
@@ -629,6 +727,24 @@ export default function EmployeesPage() {
         </div>
       </div>
 
+      {/* Department Tabs */}
+      <div className="flex border-b border-slate-200 gap-2 overflow-x-auto pb-1 scrollbar-thin">
+        {['ALL', ...departments.map((d) => d.name)].map((dept) => (
+          <button
+            key={dept}
+            onClick={() => setDepartmentFilter(dept)}
+            className={cn(
+              "px-4 py-2.5 text-sm font-semibold border-b-2 transition-all duration-200 whitespace-nowrap",
+              departmentFilter === dept
+                ? "border-emerald-600 text-emerald-600"
+                : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
+            )}
+          >
+            {dept === 'ALL' ? 'All Departments' : dept.replace(/_/g, ' ')}
+          </button>
+        ))}
+      </div>
+
       {/* Main Table / Grid Area */}
       {loading ? (
         <div className="space-y-4">
@@ -677,8 +793,11 @@ export default function EmployeesPage() {
 
                     {/* Name */}
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center flex-wrap gap-1.5">
                         <span className="font-semibold text-slate-800">{emp.name}</span>
+                        <span className="text-[9px] bg-emerald-50 border border-emerald-200 text-emerald-700 font-extrabold px-1.5 py-0.2 rounded uppercase tracking-wider">
+                          {emp.department.replace(/_/g, ' ')}
+                        </span>
                         <span className="text-[9px] bg-slate-100 border border-slate-200 text-slate-500 font-bold px-1.5 py-0.2 rounded uppercase tracking-wider">
                           {emp.employmentType.replace(/_/g, ' ')}
                         </span>
@@ -757,6 +876,20 @@ export default function EmployeesPage() {
                             </>
                           )}
                         </Button>
+
+                        {/* Permanent Delete Button */}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setEmployeeToDelete(emp);
+                            setDeleteOpen(true);
+                          }}
+                          className="h-8 border-slate-200 text-red-500 hover:bg-red-50 px-2.5"
+                          title="Delete Employee"
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -801,8 +934,11 @@ export default function EmployeesPage() {
                 {/* Name */}
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex flex-col">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center flex-wrap gap-1.5">
                       <span className="font-bold text-slate-800 text-sm truncate">{emp.name}</span>
+                      <span className="text-[9px] bg-emerald-50 border border-emerald-200 text-emerald-700 font-extrabold px-1.5 py-0.2 rounded uppercase tracking-wider">
+                        {emp.department.replace(/_/g, ' ')}
+                      </span>
                       <span className="text-[9px] bg-slate-100 border border-slate-200 text-slate-500 font-bold px-1.5 py-0.2 rounded uppercase tracking-wider">
                         {emp.employmentType.replace(/_/g, ' ')}
                       </span>
@@ -851,6 +987,18 @@ export default function EmployeesPage() {
                         Activate
                       </>
                     )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setEmployeeToDelete(emp);
+                      setDeleteOpen(true);
+                    }}
+                    className="h-8 border-slate-200 text-red-500 hover:bg-red-50 px-2.5 shrink-0"
+                    title="Delete Employee"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 text-red-500" />
                   </Button>
                 </div>
               </div>
@@ -938,6 +1086,34 @@ export default function EmployeesPage() {
                 </Select>
               </div>
 
+              {/* Department Selection */}
+              <div className="grid gap-2">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Department
+                </label>
+                <Select 
+                  value={editDepartment} 
+                  onValueChange={(val) => { if (val) setEditDepartment(val); }}
+                >
+                  <SelectTrigger className="border-slate-200 text-slate-800 w-full">
+                    <SelectValue placeholder="Select Department">
+                      {(value) => {
+                        if (!value) return 'Select Department';
+                        const dept = departments.find((d) => d.name === value);
+                        return dept ? dept.name.replace(/_/g, ' ') : value.replace(/_/g, ' ');
+                      }}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border-slate-200">
+                    {departments.map((dept) => (
+                      <SelectItem key={dept.id} value={dept.name} className="hover:bg-slate-50">
+                        {dept.name.replace(/_/g, ' ')}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Gender */}
               <div className="grid gap-2">
                 <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -970,7 +1146,7 @@ export default function EmployeesPage() {
                 </label>
                 <Select 
                   value={editEmploymentType} 
-                  onValueChange={(val) => { if (val) setEditEmploymentType(val); }}
+                  onValueChange={(val) => { if (val) handleEditRoleChange(val); }}
                 >
                   <SelectTrigger className="border-slate-200 text-slate-800 w-full">
                     <SelectValue placeholder="Select Role">
@@ -984,7 +1160,7 @@ export default function EmployeesPage() {
                   <SelectContent className="bg-white border-slate-200">
                     {jobRoles.length === 0 ? (
                       <>
-                        <SelectItem value="SOC_OPERATIONS" className="hover:bg-slate-50">SOC Operations</SelectItem>
+                        <SelectItem value="SOC_ANALYST" className="hover:bg-slate-50">SOC Analyst</SelectItem>
                         <SelectItem value="DESIGNER" className="hover:bg-slate-50">Designer</SelectItem>
                         <SelectItem value="IT_SUPPORT" className="hover:bg-slate-50">IT Support</SelectItem>
                         <SelectItem value="OTHER" className="hover:bg-slate-50">Other</SelectItem>
@@ -1167,6 +1343,50 @@ export default function EmployeesPage() {
                 </>
               ) : (
                 'Deactivate'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent className="sm:max-w-[425px] bg-white border-slate-200">
+          <DialogHeader>
+            <DialogTitle className="text-slate-800 flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-red-600" />
+              Confirm Delete Employee
+            </DialogTitle>
+            <DialogDescription className="text-slate-500">
+              Are you sure you want to permanently delete <strong className="text-slate-700 font-semibold">{employeeToDelete?.name}</strong>?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg bg-red-50 p-3 border border-red-100 text-xs text-red-700 font-medium leading-relaxed mt-2">
+            Warning: This action is permanent and cannot be undone. All schedule records, shift history, and data associated with this employee will be deleted forever.
+          </div>
+          <DialogFooter className="mt-4 flex gap-2 sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteOpen(false);
+                setEmployeeToDelete(null);
+              }}
+              disabled={deleteLoading}
+              className="border-slate-200 text-slate-600 hover:bg-slate-50"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleDeleteConfirm}
+              disabled={deleteLoading}
+              className="bg-red-600 hover:bg-red-700 text-white border-none shadow-md shadow-red-600/10 font-semibold"
+            >
+              {deleteLoading ? (
+                <>
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete Permanently'
               )}
             </Button>
           </DialogFooter>

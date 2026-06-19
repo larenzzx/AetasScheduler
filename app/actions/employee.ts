@@ -30,12 +30,25 @@ export async function createEmployee(data: {
   gender?: Gender;
   employmentType?: string;
   environmentAccess?: string[];
+  department?: string;
   requiresMentor?: boolean;
   isFixedSchedule?: boolean;
   mentorId?: string | null;
   currentShiftTypeId?: string | null;
 }) {
   try {
+    // Resolve department automatically from employmentType (role) relation
+    let resolvedDepartment = data.department ?? 'OPERATIONS';
+    if (data.employmentType) {
+      const role = await prisma.jobRole.findFirst({
+        where: { name: data.employmentType },
+        include: { department: true }
+      });
+      if (role && role.department) {
+        resolvedDepartment = role.department.name;
+      }
+    }
+
     const employee = await prisma.employee.create({
       data: {
         name: data.name,
@@ -44,6 +57,7 @@ export async function createEmployee(data: {
         gender: data.gender ?? 'MALE',
         employmentType: data.employmentType ?? 'SOC_OPERATIONS',
         environmentAccess: data.environmentAccess ?? [],
+        department: resolvedDepartment,
         requiresMentor: data.requiresMentor ?? false,
         isFixedSchedule: data.isFixedSchedule ?? false,
         mentorId: data.mentorId ?? null,
@@ -75,6 +89,7 @@ export async function updateEmployee(
     gender?: Gender;
     employmentType?: string;
     environmentAccess?: string[];
+    department?: string;
     requiresMentor?: boolean;
     isFixedSchedule?: boolean;
     mentorId?: string | null;
@@ -82,6 +97,18 @@ export async function updateEmployee(
   }
 ) {
   try {
+    // Resolve department automatically from employmentType (role) relation if provided
+    let resolvedDepartment = data.department;
+    if (data.employmentType) {
+      const role = await prisma.jobRole.findFirst({
+        where: { name: data.employmentType },
+        include: { department: true }
+      });
+      if (role && role.department) {
+        resolvedDepartment = role.department.name;
+      }
+    }
+
     const employee = await prisma.employee.update({
       where: { id },
       data: {
@@ -92,6 +119,7 @@ export async function updateEmployee(
         gender: data.gender,
         employmentType: data.employmentType,
         environmentAccess: data.environmentAccess,
+        department: resolvedDepartment,
         requiresMentor: data.requiresMentor,
         isFixedSchedule: data.isFixedSchedule,
         mentorId: data.mentorId,
@@ -127,3 +155,25 @@ export async function toggleEmployeeStatus(id: string, isActive: boolean) {
     return { success: false, error: 'Failed to toggle employee status.' };
   }
 }
+
+export async function deleteEmployee(id: string) {
+  try {
+    await prisma.$transaction([
+      prisma.employee.updateMany({
+        where: { mentorId: id },
+        data: { mentorId: null, requiresMentor: false },
+      }),
+      prisma.employee.delete({
+        where: { id },
+      }),
+    ]);
+    revalidatePath('/employees');
+    revalidatePath('/schedule');
+    revalidatePath('/');
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting employee:', error);
+    return { success: false, error: 'Failed to delete employee.' };
+  }
+}
+
