@@ -6,6 +6,7 @@ import ScheduleGrid from '@/components/ScheduleGrid';
 import NewScheduleDialog from '@/components/NewScheduleDialog';
 import ResetScheduleDialog from '@/components/ResetScheduleDialog';
 import ShiftFilterPanel from '@/components/ShiftFilterPanel';
+import BaseShiftManager from '@/components/BaseShiftManager';
 import { Button } from '@/components/ui/button';
 import { cn, formatWeekRange } from '@/lib/utils';
 import { ChevronLeft, ChevronRight, Calendar, Info, FileDown } from 'lucide-react';
@@ -128,7 +129,7 @@ export default function SchedulePage() {
       {/* Tabs / Selectors */}
       <div className="flex items-center justify-between border-b border-slate-200 pb-1">
         <div className="flex gap-2 bg-slate-100 p-1 rounded-lg border border-slate-200 shadow-inner">
-          {(['ALABANG', 'ZAMBOANGA', 'ALL'] as const).map((tab) => (
+          {(['ALL', 'ALABANG', 'ZAMBOANGA', 'BASE_SHIFTS'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -139,7 +140,13 @@ export default function SchedulePage() {
                   : "text-slate-500 hover:text-slate-800"
               )}
             >
-              {tab === 'ALL' ? 'All Teams' : tab === 'ALABANG' ? 'Team Alabang' : 'Team Zamboanga'}
+              {tab === 'ALL' 
+                ? 'All Teams' 
+                : tab === 'ALABANG' 
+                ? 'Team Alabang' 
+                : tab === 'ZAMBOANGA' 
+                ? 'Team Zamboanga' 
+                : 'Base Shifts'}
             </button>
           ))}
         </div>
@@ -164,6 +171,10 @@ export default function SchedulePage() {
         
         {activeTab === 'ZAMBOANGA' && (
           <ScheduleGrid team="ZAMBOANGA" />
+        )}
+        
+        {activeTab === 'BASE_SHIFTS' && (
+          <BaseShiftManager />
         )}
         
         {activeTab === 'ALL' && (

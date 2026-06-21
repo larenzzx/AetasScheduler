@@ -69,28 +69,16 @@ export async function validateSchedule(
   const shiftTypesMap = new Map<string, ShiftType>();
   shiftTypes.forEach((st) => shiftTypesMap.set(st.id, st));
 
-  // 2. Fetch adjacent weeks (prev and next) to check boundary rest rules
+  // 2. Fetch previous week to check boundary rest rules (next week is ignored to avoid deadlocks)
   const currentWeekStart = new Date(currentWeek.weekStartDate);
   
   const prevWeekStart = new Date(currentWeekStart);
   prevWeekStart.setUTCDate(prevWeekStart.getUTCDate() - 7);
-  
-  const nextWeekStart = new Date(currentWeekStart);
-  nextWeekStart.setUTCDate(nextWeekStart.getUTCDate() + 7);
 
   const prevWeek = await prisma.scheduleWeek.findUnique({
     where: {
       weekStartDate_team: {
         weekStartDate: prevWeekStart,
-        team: currentWeek.team,
-      },
-    },
-  });
-
-  const nextWeek = await prisma.scheduleWeek.findUnique({
-    where: {
-      weekStartDate_team: {
-        weekStartDate: nextWeekStart,
         team: currentWeek.team,
       },
     },
@@ -104,10 +92,9 @@ export async function validateSchedule(
     },
   });
 
-  // Fetch all schedule entries for prev, current, and next weeks
+  // Fetch all schedule entries for prev and current weeks
   const weekIds = [currentWeek.id];
   if (prevWeek) weekIds.push(prevWeek.id);
-  if (nextWeek) weekIds.push(nextWeek.id);
 
   const allEntries = await prisma.scheduleEntry.findMany({
     where: {
@@ -119,10 +106,10 @@ export async function validateSchedule(
 
   // 3. Validate for each employee
   for (const employee of employees) {
-    // Build 21-day timeline of shift types (prev week: -7 to -1, current week: 0 to 6, next week: 7 to 13)
+    // Build 14-day timeline of shift types (prev week: -7 to -1, current week: 0 to 6)
     const timeline: Array<{ date: Date; shiftType: ShiftType | null }> = [];
 
-    for (let i = -7; i <= 13; i++) {
+    for (let i = -7; i <= 6; i++) {
       const date = new Date(currentWeekStart);
       date.setUTCDate(date.getUTCDate() + i);
 
@@ -157,15 +144,6 @@ export async function validateSchedule(
           (e) =>
             e.employeeId === employee.id &&
             e.scheduleWeekId === prevWeek.id &&
-            e.dayOfWeek === dayOfWeekStr
-        );
-        shiftTypeId = dbMatch ? dbMatch.shiftTypeId : null;
-      } else if (nextWeek && dayStartOfItsWeek.getTime() === nextWeekStart.getTime()) {
-        // Next week
-        const dbMatch = allEntries.find(
-          (e) =>
-            e.employeeId === employee.id &&
-            e.scheduleWeekId === nextWeek.id &&
             e.dayOfWeek === dayOfWeekStr
         );
         shiftTypeId = dbMatch ? dbMatch.shiftTypeId : null;
@@ -272,12 +250,14 @@ export async function validateSchedule(
     }
   }
 
-  // Phase 3: Gender-Aware Night Shift Rule (Only for ZAMBOANGA team)
+  // Phase 3: Zamboanga Specific Staffing Constraint (Only for ZAMBOANGA team)
   if (currentWeek.team === 'ZAMBOANGA') {
-    const nightShiftTypes = shiftTypes.filter((st) => st.isNightShift);
-    
+    const targetShiftNames = ['MIDNIGHT SHIFT', 'NIGHT SHIFT', 'MID SHIFT'];
+    const targetShiftTypes = shiftTypes.filter((st) => targetShiftNames.includes(st.name.toUpperCase()));
+
     for (const dayOfWeekStr of daysOfWeekList) {
-      for (const nightShiftType of nightShiftTypes) {
+      for (const st of targetShiftTypes) {
+        // Find employees scheduled on this shift on this day
         const scheduledEmployees = employees.filter((employee) => {
           const update = updates.find(
             (u) => u.employeeId === employee.id && u.dayOfWeek === dayOfWeekStr
@@ -294,16 +274,31 @@ export async function validateSchedule(
             );
             shiftTypeId = dbMatch ? dbMatch.shiftTypeId : null;
           }
-          return shiftTypeId === nightShiftType.id;
+          return shiftTypeId === st.id;
         });
 
         const femaleScheduled = scheduledEmployees.filter((emp) => emp.gender === 'FEMALE');
 
-        if (femaleScheduled.length > 0 && scheduledEmployees.length === 1) {
-          const aloneEmp = femaleScheduled[0];
-          errors.push(
-            `${aloneEmp.name} would be alone on ${nightShiftType.name} on ${dayOfWeekStr} — at least one companion is required for night shifts.`
-          );
+        if (femaleScheduled.length > 0) {
+          const shiftNameUpper = st.name.toUpperCase();
+          if (shiftNameUpper === 'MIDNIGHT SHIFT') {
+            // Requires a male companion
+            const maleScheduled = scheduledEmployees.filter((emp) => emp.gender === 'MALE');
+            if (maleScheduled.length === 0) {
+              const aloneEmp = femaleScheduled[0];
+              errors.push(
+                `${aloneEmp.name} would be on ${st.name} on ${dayOfWeekStr} without a male companion — at least one male companion is required.`
+              );
+            }
+          } else {
+            // MID SHIFT or NIGHT SHIFT: Requires any companion
+            if (scheduledEmployees.length === 1) {
+              const aloneEmp = femaleScheduled[0];
+              errors.push(
+                `${aloneEmp.name} would be alone on ${st.name} on ${dayOfWeekStr} — at least one companion is required.`
+              );
+            }
+          }
         }
       }
     }

@@ -11,7 +11,7 @@ import {
 } from '@/app/actions/employee';
 import { getJobRoles } from '@/app/actions/job-role';
 import { getDepartments } from '@/app/actions/department';
-import { Employee, Team, ShiftType } from '@/types';
+import { Employee, Team, ShiftType, EmployeeWithRelations } from '@/types';
 import { Gender } from '@prisma/client';
 import { Button } from '@/components/ui/button';
 import { 
@@ -47,7 +47,7 @@ import {
 import { cn } from '@/lib/utils';
 
 export default function EmployeesPage() {
-  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [employees, setEmployees] = useState<EmployeeWithRelations[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Search and Filter states
@@ -823,6 +823,8 @@ export default function EmployeesPage() {
                         {emp.team}
                       </span>
                     </td>
+
+
 
                     {/* Active Status Badge */}
                     <td className="px-6 py-4">

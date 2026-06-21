@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { validateShiftCoverage } from '@/lib/schedulingValidation';
 
+import { DayOfWeek } from '@prisma/client';
+
 export async function getShiftTypes() {
   return await prisma.shiftType.findMany({
     orderBy: {
@@ -17,6 +19,7 @@ export async function createShiftType(data: {
   startTime: string | null;
   endTime: string | null;
   colorHex: string;
+  daysOfWeek?: DayOfWeek[];
 }) {
   try {
     // Check for duplicate name
@@ -43,6 +46,7 @@ export async function createShiftType(data: {
         endTime: data.endTime ? data.endTime.trim() : null,
         colorHex: data.colorHex.trim(),
         sortOrder: nextSortOrder,
+        daysOfWeek: data.daysOfWeek,
       },
     });
 
@@ -66,6 +70,7 @@ export async function updateShiftType(
     startTime: string | null;
     endTime: string | null;
     colorHex: string;
+    daysOfWeek?: DayOfWeek[];
   }
 ) {
   try {
@@ -88,6 +93,7 @@ export async function updateShiftType(
         startTime: data.startTime ? data.startTime.trim() : null,
         endTime: data.endTime ? data.endTime.trim() : null,
         colorHex: data.colorHex.trim(),
+        daysOfWeek: data.daysOfWeek,
       },
     });
 

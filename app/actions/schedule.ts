@@ -195,68 +195,21 @@ export async function createScheduleWeek(
       data: entriesToCreate,
     });
   } else if (option === 'generate') {
-    // Fetch team settings for rotation
-    const teamSettings = await prisma.teamSettings.findUnique({
-      where: { team },
-    });
-    const rotationEnabled = teamSettings?.rotationEnabled ?? true;
-
-    // Find the earliest scheduled week for this team to calculate the cycle index
-    const earliestWeek = await prisma.scheduleWeek.findFirst({
-      where: { team },
-      orderBy: { weekStartDate: 'asc' },
-    });
-
-    const earliestDate = earliestWeek ? earliestWeek.weekStartDate : weekStart;
-    const msDiff = weekStart.getTime() - earliestDate.getTime();
-    const weeksDiff = Math.round(msDiff / (7 * 24 * 60 * 60 * 1000));
-    const periodIndex = Math.max(0, Math.floor(weeksDiff / 2));
-
-    const rotationPathNames = ['DAY SHIFT', 'MID SHIFT', 'ADJUST SHIFT', 'NIGHT SHIFT'];
-    const rotationPath = rotationPathNames
-      .map((name) => shiftTypes.find((st) => st.name === name))
-      .filter((st): st is NonNullable<typeof st> => !!st);
-
-    // Find previous week's start date
-    const prevWeekStart = new Date(weekStart);
-    prevWeekStart.setUTCDate(prevWeekStart.getUTCDate() - 7);
-    const prevWeek = await prisma.scheduleWeek.findUnique({
-      where: {
-        weekStartDate_team: {
-          weekStartDate: prevWeekStart,
-          team,
-        },
-      },
-      include: {
-        entries: true,
-      },
-    });
-
     const proposedUpdates: Array<{ employeeId: string; dayOfWeek: DayOfWeek; shiftTypeId: string | null }> = [];
     const flaggedEmployees = new Set<string>();
-    const flaggedReasons = new Map<string, string[]>();
 
-    // Initial assignment
+    // Initial assignment: Directly schedule them based on their currently assigned base shift
     for (const employee of employees) {
-      const isFixed = employee.isFixedSchedule || !rotationEnabled;
       const baseShiftType = employee.currentShiftTypeId
         ? shiftTypes.find((st) => st.id === employee.currentShiftTypeId)
         : null;
 
       for (const day of days) {
         let shiftTypeId: string | null = null;
-        if (baseShiftType) {
-          let finalShiftType = baseShiftType;
-          if (!isFixed) {
-            const baseIdx = rotationPath.findIndex((st) => st.id === baseShiftType.id);
-            if (baseIdx !== -1) {
-              finalShiftType = rotationPath[(baseIdx + periodIndex) % rotationPath.length];
-            }
-          }
-          if (finalShiftType.daysOfWeek.includes(day)) {
-            shiftTypeId = finalShiftType.id;
-          }
+        if (baseShiftType && baseShiftType.daysOfWeek.includes(day)) {
+          shiftTypeId = baseShiftType.id;
         }
+
         proposedUpdates.push({
           employeeId: employee.id,
           dayOfWeek: day,
@@ -268,8 +221,9 @@ export async function createScheduleWeek(
     // Iterative validation and revert loop
     let stable = false;
     let iteration = 0;
-    const maxIterations = 5;
+    const maxIterations = 10;
     const autoResolvedEmployees = new Set<string>();
+    const adjustShift = shiftTypes.find((st) => st.name === 'ADJUST SHIFT');
 
     while (!stable && iteration < maxIterations) {
       iteration++;
@@ -281,20 +235,29 @@ export async function createScheduleWeek(
         let resolvedAny = false;
         
         for (const error of validationResult.errors) {
-          const isGenderError = error.includes('companion is required for night shifts');
+          const isGenderError = error.includes('companion is required') || error.includes('male companion');
           const isMentorError = error.includes('requires a mentor present');
 
           if (isGenderError) {
             // Find female employee and day
             const femaleEmp = employees.find(e => error.includes(e.name) && e.gender === 'FEMALE');
             const dayStr = days.find(d => error.includes(d));
-            const nightShiftType = shiftTypes.find(st => st.isNightShift && error.includes(st.name));
+            const targetShiftType = shiftTypes.find(st => error.includes(st.name));
 
-            if (femaleEmp && dayStr && nightShiftType) {
+            if (femaleEmp && dayStr && targetShiftType) {
+              // RESTRICTION: Adjust shifts can only cover DAY A/B, MID, MIDNIGHT shifts
+              const allowedNames = ['DAY SHIFT A', 'DAY SHIFT B', 'MID SHIFT', 'MIDNIGHT SHIFT'];
+              if (!allowedNames.includes(targetShiftType.name.toUpperCase())) {
+                continue;
+              }
+
+              const requiresMale = error.includes('male companion');
               let companionFound = false;
               for (const cand of employees) {
                 if (cand.id === femaleEmp.id) continue;
                 if (cand.isFixedSchedule) continue;
+                if (requiresMale && cand.gender !== 'MALE') continue;
+                if (cand.currentShiftTypeId !== adjustShift?.id) continue; // Only draft floats/adjust shift employees
 
                 const candUpdateIdx = proposedUpdates.findIndex(u => u.employeeId === cand.id && u.dayOfWeek === dayStr);
                 if (candUpdateIdx === -1) continue;
@@ -305,7 +268,7 @@ export async function createScheduleWeek(
 
                 if (isAvailable) {
                   const prevShiftId = currentShiftId;
-                  proposedUpdates[candUpdateIdx].shiftTypeId = nightShiftType.id;
+                  proposedUpdates[candUpdateIdx].shiftTypeId = targetShiftType.id;
 
                   const tempVal = await validateSchedule(week.id, proposedUpdates);
                   const candHasError = tempVal.errors.some(err => err.includes(cand.name));
@@ -332,10 +295,17 @@ export async function createScheduleWeek(
             const shiftType = newEmpUpdate?.shiftTypeId ? shiftTypes.find(st => st.id === newEmpUpdate.shiftTypeId) : null;
 
             if (newEmp && dayStr && shiftType) {
+              // RESTRICTION: Adjust shifts can only cover DAY A/B, MID, MIDNIGHT shifts
+              const allowedNames = ['DAY SHIFT A', 'DAY SHIFT B', 'MID SHIFT', 'MIDNIGHT SHIFT'];
+              if (!allowedNames.includes(shiftType.name.toUpperCase())) {
+                continue;
+              }
+
               let companionFound = false;
               for (const cand of employees) {
                 if (cand.id === newEmp.id) continue;
                 if (cand.isFixedSchedule) continue;
+                if (cand.currentShiftTypeId !== adjustShift?.id) continue; // Only draft floats/adjust shift employees
 
                 const isMentorCandidate = !cand.requiresMentor || cand.id === newEmp.mentorId;
                 if (isMentorCandidate) {
@@ -373,46 +343,8 @@ export async function createScheduleWeek(
         }
 
         if (!resolvedAny) {
-          let newlyFlagged = false;
-          for (const error of validationResult.errors) {
-            for (const employee of employees) {
-              if (employee.isFixedSchedule || !rotationEnabled) continue;
-              if (flaggedEmployees.has(employee.id)) continue;
-
-              if (error.includes(employee.name)) {
-                flaggedEmployees.add(employee.id);
-                newlyFlagged = true;
-                if (!flaggedReasons.has(employee.id)) {
-                  flaggedReasons.set(employee.id, []);
-                }
-                flaggedReasons.get(employee.id)!.push(error);
-
-                for (const day of days) {
-                  const prevEntry = prevWeek?.entries.find(
-                    (e) => e.employeeId === employee.id && e.dayOfWeek === day
-                  );
-                  let revertedShiftTypeId: string | null = null;
-                  if (prevEntry) {
-                    revertedShiftTypeId = prevEntry.shiftTypeId;
-                  } else if (employee.currentShiftTypeId) {
-                    const baseST = shiftTypes.find((st) => st.id === employee.currentShiftTypeId);
-                    if (baseST && baseST.daysOfWeek.includes(day)) {
-                      revertedShiftTypeId = employee.currentShiftTypeId;
-                    }
-                  }
-                  const idx = proposedUpdates.findIndex(
-                    (u) => u.employeeId === employee.id && u.dayOfWeek === day
-                  );
-                  if (idx !== -1) {
-                    proposedUpdates[idx].shiftTypeId = revertedShiftTypeId;
-                  }
-                }
-              }
-            }
-          }
-          if (!newlyFlagged) {
-            stable = true;
-          }
+          // If we couldn't resolve any violations in this iteration, we stop search to avoid infinite loop
+          stable = true;
         }
       }
     }
@@ -433,33 +365,48 @@ export async function createScheduleWeek(
       data: entriesToCreate,
     });
 
-    // Build summary counts
-    let rotatedCount = 0;
-    let autoResolvedCount = 0;
-    let flaggedCount = 0;
-    let skippedCount = 0;
+    // Run final validation on the saved schedule to build flags and summary
+    const finalVal = await validateSchedule(week.id, proposedUpdates);
     const flags: Array<{ employeeName: string; reason: string }> = [];
+    flaggedEmployees.clear();
+
+    if (!finalVal.success) {
+      for (const err of finalVal.errors) {
+        const emp = employees.find(e => err.includes(e.name));
+        if (emp) {
+          flaggedEmployees.add(emp.id);
+          flags.push({
+            employeeName: emp.name,
+            reason: err
+          });
+        }
+      }
+    }
+
+    // Build summary counts:
+    // 1. autoResolvedCount: Employees with ADJUST SHIFT base shift who got scheduled on a shift
+    // 2. flaggedCount: Number of unique employees with unresolved validation errors
+    // 3. skippedCount: Number of employees who are not floats/adjust shifts
+    // 4. rotatedCount: 0 (since rotation cycle is removed)
+    let autoResolvedCount = 0;
+    let skippedCount = 0;
 
     for (const employee of employees) {
-      if (employee.isFixedSchedule || !rotationEnabled) {
-        skippedCount++;
-      } else if (flaggedEmployees.has(employee.id)) {
-        flaggedCount++;
-        flags.push({
-          employeeName: employee.name,
-          reason: Array.from(new Set(flaggedReasons.get(employee.id) || [])).join('; ')
-        });
-      } else if (autoResolvedEmployees.has(employee.id)) {
-        autoResolvedCount++;
+      if (employee.currentShiftTypeId === adjustShift?.id) {
+        // Check if they got assigned any shift this week
+        const hasShift = proposedUpdates.some(u => u.employeeId === employee.id && u.shiftTypeId !== null);
+        if (hasShift) {
+          autoResolvedCount++;
+        }
       } else {
-        rotatedCount++;
+        skippedCount++;
       }
     }
 
     const summary = {
-      rotatedCount,
+      rotatedCount: 0,
       autoResolvedCount,
-      flaggedCount,
+      flaggedCount: flaggedEmployees.size,
       skippedCount,
       flags
     };

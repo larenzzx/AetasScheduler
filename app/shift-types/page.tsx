@@ -9,7 +9,7 @@ import {
   updateShiftSortOrders,
   getShiftCoverageWarnings
 } from '@/app/actions/shift-type';
-import { ShiftType } from '@/types';
+import { ShiftType, DayOfWeek } from '@/types';
 import { Button } from '@/components/ui/button';
 import { 
   Dialog, 
@@ -50,6 +50,8 @@ const PRESET_COLORS = [
   { name: 'Yellow', value: '#EAB308' },
 ];
 
+const DAYS_OF_WEEK: DayOfWeek[] = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+
 export default function ShiftTypesPage() {
   const [shiftTypes, setShiftTypes] = useState<ShiftType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,6 +67,7 @@ export default function ShiftTypesPage() {
   const [newStartTime, setNewStartTime] = useState('8:00 AM');
   const [newEndTime, setNewEndTime] = useState('5:00 PM');
   const [newColorHex, setNewColorHex] = useState('#94A3B8');
+  const [newDaysOfWeek, setNewDaysOfWeek] = useState<DayOfWeek[]>(['MON', 'TUE', 'WED', 'THU', 'FRI']);
 
   // Edit Shift states
   const [editOpen, setEditOpen] = useState(false);
@@ -76,6 +79,19 @@ export default function ShiftTypesPage() {
   const [editStartTime, setEditStartTime] = useState('');
   const [editEndTime, setEditEndTime] = useState('');
   const [editColorHex, setEditColorHex] = useState('');
+  const [editDaysOfWeek, setEditDaysOfWeek] = useState<DayOfWeek[]>([]);
+
+  const toggleDay = (day: DayOfWeek, isEdit: boolean) => {
+    if (isEdit) {
+      setEditDaysOfWeek(prev => 
+        prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+      );
+    } else {
+      setNewDaysOfWeek(prev => 
+        prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+      );
+    }
+  };
 
   // Delete confirmation modal states
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -123,6 +139,7 @@ export default function ShiftTypesPage() {
         startTime: hasHours ? newStartTime.trim() : null,
         endTime: hasHours ? newEndTime.trim() : null,
         colorHex: newColorHex,
+        daysOfWeek: newDaysOfWeek,
       });
 
       if (response.success) {
@@ -137,6 +154,7 @@ export default function ShiftTypesPage() {
         setNewStartTime('8:00 AM');
         setNewEndTime('5:00 PM');
         setNewColorHex('#94A3B8');
+        setNewDaysOfWeek(['MON', 'TUE', 'WED', 'THU', 'FRI']);
         // Reload list
         loadShifts();
       } else {
@@ -158,6 +176,7 @@ export default function ShiftTypesPage() {
     setEditStartTime(shift.startTime || '8:00 AM');
     setEditEndTime(shift.endTime || '5:00 PM');
     setEditColorHex(shift.colorHex);
+    setEditDaysOfWeek(shift.daysOfWeek || []);
     setEditError(null);
     setEditOpen(true);
   };
@@ -185,6 +204,7 @@ export default function ShiftTypesPage() {
         startTime: editHasHours ? editStartTime.trim() : null,
         endTime: editHasHours ? editEndTime.trim() : null,
         colorHex: editColorHex,
+        daysOfWeek: editDaysOfWeek,
       });
 
       if (response.success) {
@@ -374,6 +394,36 @@ export default function ShiftTypesPage() {
                   </div>
                 )}
 
+                {/* Workdays Selector */}
+                <div className="grid gap-2">
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    Workdays / Rest-day Template
+                  </label>
+                  <p className="text-xs text-slate-400">
+                    Select the days of the week when this shift is active. Unselected days will automatically be flagged as day-offs.
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {DAYS_OF_WEEK.map((day) => {
+                      const isSelected = newDaysOfWeek.includes(day);
+                      return (
+                        <button
+                          key={day}
+                          type="button"
+                          onClick={() => toggleDay(day, false)}
+                          className={cn(
+                            "px-3 py-1.5 text-xs font-bold rounded-lg border transition-all duration-150 hover:scale-105",
+                            isSelected
+                              ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
+                              : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                          )}
+                        >
+                          {day}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 {/* Color Selection */}
                 <div className="grid gap-2">
                   <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -516,6 +566,7 @@ export default function ShiftTypesPage() {
                   <th className="px-6 py-4 w-20 text-center"><Hash className="h-3.5 w-3.5 mx-auto text-slate-400" /></th>
                   <th className="px-6 py-4">Shift Name</th>
                   <th className="px-6 py-4">Working Hours</th>
+                  <th className="px-6 py-4">Workdays Template</th>
                   <th className="px-6 py-4">Display Theme</th>
                   <th className="px-6 py-4 text-center w-32">Ordering</th>
                   <th className="px-6 py-4 text-right">Actions</th>
@@ -548,6 +599,22 @@ export default function ShiftTypesPage() {
                         ) : (
                           <span className="text-slate-400 italic">No set working hours</span>
                         )}
+                      </td>
+
+                      {/* Workdays / Day-offs */}
+                      <td className="px-6 py-4">
+                        <div className="space-y-1 text-xs">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-slate-500 uppercase tracking-wider text-[9px]">Workdays:</span>
+                            <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-mono font-bold text-[10px]">{shift.daysOfWeek && shift.daysOfWeek.length > 0 ? shift.daysOfWeek.join(', ') : 'NONE'}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-slate-500 uppercase tracking-wider text-[9px]">Day-offs:</span>
+                            <span className="text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded font-mono font-bold text-[10px]">
+                              {DAYS_OF_WEEK.filter(d => !shift.daysOfWeek?.includes(d)).join(', ')}
+                            </span>
+                          </div>
+                        </div>
                       </td>
 
                       {/* Display Color Hex */}
@@ -706,6 +773,36 @@ export default function ShiftTypesPage() {
                   </div>
                 </div>
               )}
+
+              {/* Workdays Selector */}
+              <div className="grid gap-2">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Workdays / Rest-day Template
+                </label>
+                <p className="text-xs text-slate-400">
+                  Select the days of the week when this shift is active. Unselected days will automatically be flagged as day-offs.
+                </p>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {DAYS_OF_WEEK.map((day) => {
+                    const isSelected = editDaysOfWeek.includes(day);
+                    return (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => toggleDay(day, true)}
+                        className={cn(
+                          "px-3 py-1.5 text-xs font-bold rounded-lg border transition-all duration-150 hover:scale-105",
+                          isSelected
+                            ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
+                            : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                        )}
+                      >
+                        {day}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
               {/* Color Selection */}
               <div className="grid gap-2">

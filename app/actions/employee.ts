@@ -10,6 +10,7 @@ export async function getEmployees() {
     include: {
       mentor: true,
       mentees: true,
+      currentShiftType: true,
     },
   });
   return emps.sort((a, b) => (parseInt(a.employeeId, 10) || 0) - (parseInt(b.employeeId, 10) || 0));
@@ -174,6 +175,22 @@ export async function deleteEmployee(id: string) {
   } catch (error) {
     console.error('Error deleting employee:', error);
     return { success: false, error: 'Failed to delete employee.' };
+  }
+}
+
+export async function updateEmployeeBaseShift(id: string, currentShiftTypeId: string | null) {
+  try {
+    await prisma.employee.update({
+      where: { id },
+      data: { currentShiftTypeId },
+    });
+    revalidatePath('/schedule');
+    revalidatePath('/employees');
+    revalidatePath('/');
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating employee base shift:', error);
+    return { success: false, error: 'Failed to update base shift.' };
   }
 }
 

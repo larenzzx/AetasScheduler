@@ -14,6 +14,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { Info, AlertTriangle, Loader2 } from 'lucide-react';
 import { markEmergencyLeave, assignReplacement, runScheduleValidation } from '@/app/actions/schedule';
+import { updateEmployeeBaseShift } from '@/app/actions/employee';
 import { 
   Dialog, 
   DialogContent, 
@@ -217,7 +218,11 @@ export default function ScheduleGrid({ team }: ScheduleGridProps) {
             return shiftTypeId === null;
           } else {
             const shift = shiftTypes.find((s) => s.id === shiftTypeId);
-            return shift?.name === activeShiftFilter;
+            if (!shift) return false;
+            if (activeShiftFilter === 'DAY SHIFT') {
+              return shift.name.startsWith('DAY SHIFT');
+            }
+            return shift.name === activeShiftFilter;
           }
         });
       })
@@ -385,6 +390,21 @@ export default function ScheduleGrid({ team }: ScheduleGridProps) {
       toast.error('Failed to assign replacement.');
     } finally {
       setReplacementLoading(false);
+    }
+  };
+
+  const handleUpdateBaseShift = async (employeeId: string, currentShiftTypeId: string | null) => {
+    try {
+      const res = await updateEmployeeBaseShift(employeeId, currentShiftTypeId);
+      if (res.success) {
+        toast.success('Employee base shift updated successfully!');
+        await fetchSchedule();
+      } else {
+        toast.error(res.error || 'Failed to update base shift.');
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('An unexpected error occurred.');
     }
   };
 
@@ -568,27 +588,26 @@ export default function ScheduleGrid({ team }: ScheduleGridProps) {
                       <span className="inline-flex items-center text-[9px] font-medium text-slate-500 bg-slate-50 border border-slate-200 px-1 py-0.2 rounded uppercase tracking-wide">
                         {row.employee.employmentType.replace('_', ' ')}
                       </span>
-                      
-                      {/* Base Shift Badge */}
-                      {(() => {
-                        const baseShift = row.employee.currentShiftTypeId 
-                          ? shiftTypes.find((s) => s.id === row.employee.currentShiftTypeId) 
-                          : null;
-                        if (!baseShift) return null;
-                        return (
-                          <span 
-                            className="inline-flex items-center text-[9px] font-bold px-1 py-0.2 rounded uppercase tracking-wider border"
-                            style={{
-                              backgroundColor: `${baseShift.colorHex}15`,
-                              borderColor: `${baseShift.colorHex}30`,
-                              color: baseShift.colorHex
-                            }}
-                            title={`Base Shift: ${baseShift.name}`}
-                          >
-                            {baseShift.name.replace(' SHIFT', '')}
-                          </span>
-                        );
-                      })()}
+                    </div>
+
+                    {/* Base Shift Dropdown */}
+                    <div className="mt-1.5 pt-1.5 border-t border-slate-100 flex items-center justify-between gap-1">
+                      <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Base Shift:</span>
+                      <select
+                        value={row.employee.currentShiftTypeId || 'NONE'}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          handleUpdateBaseShift(row.employee.id, val === 'NONE' ? null : val);
+                        }}
+                        className="text-[9px] bg-slate-50 border border-slate-200 text-slate-700 rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-semibold cursor-pointer max-w-[120px] truncate"
+                      >
+                        <option value="NONE">All Day-offs</option>
+                        {shiftTypes.map((st) => (
+                          <option key={st.id} value={st.id}>
+                            {st.name}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </td>
 
@@ -597,7 +616,11 @@ export default function ScheduleGrid({ team }: ScheduleGridProps) {
                     const { shift, isDayOff, hasUnsavedChange } = getCellState(row.employee.id, day);
                     const matchesFilter = !activeShiftFilter ||
                       (activeShiftFilter === 'DAY-OFF' && isDayOff) ||
-                      (shift && shift.name === activeShiftFilter);
+                      (shift && (
+                        activeShiftFilter === 'DAY SHIFT' 
+                          ? shift.name.startsWith('DAY SHIFT') 
+                          : shift.name === activeShiftFilter
+                      ));
 
                     const currentCell = { employeeId: row.employee.id, dayOfWeek: day };
                     const isValidTarget = activeDragCell ? checkCellValidity(activeDragCell, currentCell) : true;
