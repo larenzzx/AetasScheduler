@@ -44,7 +44,7 @@ interface ScheduleState {
   fetchSchedule: () => Promise<void>;
   updateCell: (employeeId: string, dayOfWeek: DayOfWeek, shiftTypeId: string | null) => void;
   discardChanges: () => void;
-  saveChanges: () => Promise<{ success: boolean; errors: string[]; warnings: string[] } | undefined>;
+  saveChanges: (overrideRules?: boolean) => Promise<{ success: boolean; errors: string[]; warnings: string[] } | undefined>;
   hasChanges: () => boolean;
   deleteSchedule: (team: Team) => Promise<void>;
 }
@@ -146,7 +146,7 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
     set({ unsavedChanges: {} });
   },
 
-  saveChanges: async () => {
+  saveChanges: async (overrideRules: boolean = false) => {
     const { alabangWeek, zamboangaWeek, alabangRows, zamboangaRows, unsavedChanges, fetchSchedule } = get();
     if (Object.keys(unsavedChanges).length === 0) return { success: true, errors: [], warnings: [] };
     
@@ -179,11 +179,11 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
       const savePromises = [];
       
       if (alabangUpdates.length > 0 && alabangWeek) {
-        savePromises.push(saveScheduleEntries(alabangWeek.id, alabangUpdates));
+        savePromises.push(saveScheduleEntries(alabangWeek.id, alabangUpdates, overrideRules));
       }
       
       if (zamboangaUpdates.length > 0 && zamboangaWeek) {
-        savePromises.push(saveScheduleEntries(zamboangaWeek.id, zamboangaUpdates));
+        savePromises.push(saveScheduleEntries(zamboangaWeek.id, zamboangaUpdates, overrideRules));
       }
 
       const results = await Promise.all(savePromises);

@@ -274,19 +274,19 @@ export default function NewScheduleDialog() {
               </div>
             </div>
 
-            <DialogFooter className="border-t border-slate-200/10 pt-3">
+            <DialogFooter className="border-t border-slate-200/10 pt-3 flex flex-row gap-2 w-full">
               <Button
                 variant="outline"
                 onClick={() => setOpen(false)}
                 disabled={loading}
-                className="border-slate-700 bg-transparent text-slate-300 hover:bg-slate-800 hover:text-white"
+                className="flex-1 h-10 border-slate-700 bg-transparent text-slate-300 hover:bg-slate-800 hover:text-white"
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleCreate}
                 disabled={loading}
-                className="bg-[#1023FD] hover:bg-[#11B4D4] text-white border-none shadow-md shadow-[#1023FD]/10 font-semibold h-10 px-5"
+                className="flex-1 h-10 bg-[#1023FD] hover:bg-[#11B4D4] text-white border-none shadow-md shadow-[#1023FD]/10 font-semibold"
               >
                 {loading ? (
                   <>

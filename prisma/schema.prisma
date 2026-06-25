@@ -52,16 +52,19 @@ model Employee {
 }
 
 model ShiftType {
-  id                 String          @id @default(cuid())
-  name               String          @unique
-  startTime          String?         // e.g. "08:00 AM" or "6:00 AM", nullable for LEAVE / DAY-OFF / ADJUST
-  endTime            String?         // e.g. "05:00 PM" or "3:00 PM", nullable
-  colorHex           String          // e.g. "#808080" for gray
-  sortOrder          Int             @default(0)
-  isNightShift       Boolean         @default(false)
-  daysOfWeek         DayOfWeek[]     @default([MON, TUE, WED, THU, FRI])
-  schedules          ScheduleEntry[]
-  baseShiftEmployees Employee[]      @relation("EmployeeBaseShift")
+  id                  String          @id @default(cuid())
+  name                String          @unique
+  startTime           String?         // e.g. "08:00 AM" or "6:00 AM", nullable for LEAVE / DAY-OFF / ADJUST
+  endTime             String?         // e.g. "05:00 PM" or "3:00 PM", nullable
+  colorHex            String          // e.g. "#808080" for gray
+  sortOrder           Int             @default(0)
+  isNightShift        Boolean         @default(false)
+  daysOfWeek          DayOfWeek[]     @default([MON, TUE, WED, THU, FRI])
+  isComposite         Boolean         @default(false)
+  compositeShiftIds   String[]        @default([])
+  daysMapping         String[]        @default([]) // length 7: MON, TUE, WED, THU, FRI, SAT, SUN
+  schedules           ScheduleEntry[]
+  baseShiftEmployees  Employee[]      @relation("EmployeeBaseShift")
 }
 
 model ScheduleWeek {

@@ -20,6 +20,9 @@ export async function createShiftType(data: {
   endTime: string | null;
   colorHex: string;
   daysOfWeek?: DayOfWeek[];
+  isComposite?: boolean;
+  compositeShiftIds?: string[];
+  daysMapping?: string[];
 }) {
   try {
     // Check for duplicate name
@@ -47,6 +50,9 @@ export async function createShiftType(data: {
         colorHex: data.colorHex.trim(),
         sortOrder: nextSortOrder,
         daysOfWeek: data.daysOfWeek,
+        isComposite: data.isComposite ?? false,
+        compositeShiftIds: data.compositeShiftIds ?? [],
+        daysMapping: data.daysMapping ?? [],
       },
     });
 
@@ -71,6 +77,9 @@ export async function updateShiftType(
     endTime: string | null;
     colorHex: string;
     daysOfWeek?: DayOfWeek[];
+    isComposite?: boolean;
+    compositeShiftIds?: string[];
+    daysMapping?: string[];
   }
 ) {
   try {
@@ -94,6 +103,9 @@ export async function updateShiftType(
         endTime: data.endTime ? data.endTime.trim() : null,
         colorHex: data.colorHex.trim(),
         daysOfWeek: data.daysOfWeek,
+        isComposite: data.isComposite,
+        compositeShiftIds: data.compositeShiftIds,
+        daysMapping: data.daysMapping,
       },
     });
 

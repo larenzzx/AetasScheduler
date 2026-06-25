@@ -204,10 +204,23 @@ export async function createScheduleWeek(
         ? shiftTypes.find((st) => st.id === employee.currentShiftTypeId)
         : null;
 
-      for (const day of days) {
+      for (let dayIdx = 0; dayIdx < days.length; dayIdx++) {
+        const day = days[dayIdx];
         let shiftTypeId: string | null = null;
-        if (baseShiftType && baseShiftType.daysOfWeek.includes(day)) {
-          shiftTypeId = baseShiftType.id;
+
+        if (baseShiftType) {
+          if (baseShiftType.isComposite) {
+            // For composite shifts, read the mapped shift type for this day index
+            const mappedVal = baseShiftType.daysMapping[dayIdx];
+            if (mappedVal && mappedVal !== 'OFF' && mappedVal !== 'NONE') {
+              shiftTypeId = mappedVal;
+            }
+          } else {
+            // For standard shifts, check if active on this day
+            if (baseShiftType.daysOfWeek.includes(day)) {
+              shiftTypeId = baseShiftType.id;
+            }
+          }
         }
 
         proposedUpdates.push({
@@ -215,137 +228,6 @@ export async function createScheduleWeek(
           dayOfWeek: day,
           shiftTypeId,
         });
-      }
-    }
-
-    // Iterative validation and revert loop
-    let stable = false;
-    let iteration = 0;
-    const maxIterations = 10;
-    const autoResolvedEmployees = new Set<string>();
-    const adjustShift = shiftTypes.find((st) => st.name === 'ADJUST SHIFT');
-
-    while (!stable && iteration < maxIterations) {
-      iteration++;
-      const validationResult = await validateSchedule(week.id, proposedUpdates);
-      
-      if (validationResult.success) {
-        stable = true;
-      } else {
-        let resolvedAny = false;
-        
-        for (const error of validationResult.errors) {
-          const isGenderError = error.includes('companion is required') || error.includes('male companion');
-          const isMentorError = error.includes('requires a mentor present');
-
-          if (isGenderError) {
-            // Find female employee and day
-            const femaleEmp = employees.find(e => error.includes(e.name) && e.gender === 'FEMALE');
-            const dayStr = days.find(d => error.includes(d));
-            const targetShiftType = shiftTypes.find(st => error.includes(st.name));
-
-            if (femaleEmp && dayStr && targetShiftType) {
-              // RESTRICTION: Adjust shifts can only cover DAY A/B, MID, MIDNIGHT shifts
-              const allowedNames = ['DAY SHIFT A', 'DAY SHIFT B', 'MID SHIFT', 'MIDNIGHT SHIFT'];
-              if (!allowedNames.includes(targetShiftType.name.toUpperCase())) {
-                continue;
-              }
-
-              const requiresMale = error.includes('male companion');
-              let companionFound = false;
-              for (const cand of employees) {
-                if (cand.id === femaleEmp.id) continue;
-                if (cand.isFixedSchedule) continue;
-                if (requiresMale && cand.gender !== 'MALE') continue;
-                if (cand.currentShiftTypeId !== adjustShift?.id) continue; // Only draft floats/adjust shift employees
-
-                const candUpdateIdx = proposedUpdates.findIndex(u => u.employeeId === cand.id && u.dayOfWeek === dayStr);
-                if (candUpdateIdx === -1) continue;
-
-                const currentShiftId = proposedUpdates[candUpdateIdx].shiftTypeId;
-                const currentShift = currentShiftId ? shiftTypes.find(st => st.id === currentShiftId) : null;
-                const isAvailable = !currentShift || !currentShift.startTime;
-
-                if (isAvailable) {
-                  const prevShiftId = currentShiftId;
-                  proposedUpdates[candUpdateIdx].shiftTypeId = targetShiftType.id;
-
-                  const tempVal = await validateSchedule(week.id, proposedUpdates);
-                  const candHasError = tempVal.errors.some(err => err.includes(cand.name));
-
-                  if (!candHasError) {
-                    companionFound = true;
-                    autoResolvedEmployees.add(femaleEmp.id);
-                    autoResolvedEmployees.add(cand.id);
-                    resolvedAny = true;
-                    break;
-                  } else {
-                    proposedUpdates[candUpdateIdx].shiftTypeId = prevShiftId;
-                  }
-                }
-              }
-              if (companionFound) {
-                break;
-              }
-            }
-          } else if (isMentorError) {
-            const newEmp = employees.find(e => error.includes(e.name) && e.requiresMentor);
-            const dayStr = days.find(d => error.includes(d));
-            const newEmpUpdate = proposedUpdates.find(u => u.employeeId === newEmp?.id && u.dayOfWeek === dayStr);
-            const shiftType = newEmpUpdate?.shiftTypeId ? shiftTypes.find(st => st.id === newEmpUpdate.shiftTypeId) : null;
-
-            if (newEmp && dayStr && shiftType) {
-              // RESTRICTION: Adjust shifts can only cover DAY A/B, MID, MIDNIGHT shifts
-              const allowedNames = ['DAY SHIFT A', 'DAY SHIFT B', 'MID SHIFT', 'MIDNIGHT SHIFT'];
-              if (!allowedNames.includes(shiftType.name.toUpperCase())) {
-                continue;
-              }
-
-              let companionFound = false;
-              for (const cand of employees) {
-                if (cand.id === newEmp.id) continue;
-                if (cand.isFixedSchedule) continue;
-                if (cand.currentShiftTypeId !== adjustShift?.id) continue; // Only draft floats/adjust shift employees
-
-                const isMentorCandidate = !cand.requiresMentor || cand.id === newEmp.mentorId;
-                if (isMentorCandidate) {
-                  const candUpdateIdx = proposedUpdates.findIndex(u => u.employeeId === cand.id && u.dayOfWeek === dayStr);
-                  if (candUpdateIdx === -1) continue;
-
-                  const currentShiftId = proposedUpdates[candUpdateIdx].shiftTypeId;
-                  const currentShift = currentShiftId ? shiftTypes.find(st => st.id === currentShiftId) : null;
-                  const isAvailable = !currentShift || !currentShift.startTime;
-
-                  if (isAvailable) {
-                    const prevShiftId = currentShiftId;
-                    proposedUpdates[candUpdateIdx].shiftTypeId = shiftType.id;
-
-                    const tempVal = await validateSchedule(week.id, proposedUpdates);
-                    const candHasError = tempVal.errors.some(err => err.includes(cand.name));
-
-                    if (!candHasError) {
-                      companionFound = true;
-                      autoResolvedEmployees.add(newEmp.id);
-                      autoResolvedEmployees.add(cand.id);
-                      resolvedAny = true;
-                      break;
-                    } else {
-                      proposedUpdates[candUpdateIdx].shiftTypeId = prevShiftId;
-                    }
-                  }
-                }
-              }
-              if (companionFound) {
-                break;
-              }
-            }
-          }
-        }
-
-        if (!resolvedAny) {
-          // If we couldn't resolve any violations in this iteration, we stop search to avoid infinite loop
-          stable = true;
-        }
       }
     }
 
@@ -383,31 +265,11 @@ export async function createScheduleWeek(
       }
     }
 
-    // Build summary counts:
-    // 1. autoResolvedCount: Employees with ADJUST SHIFT base shift who got scheduled on a shift
-    // 2. flaggedCount: Number of unique employees with unresolved validation errors
-    // 3. skippedCount: Number of employees who are not floats/adjust shifts
-    // 4. rotatedCount: 0 (since rotation cycle is removed)
-    let autoResolvedCount = 0;
-    let skippedCount = 0;
-
-    for (const employee of employees) {
-      if (employee.currentShiftTypeId === adjustShift?.id) {
-        // Check if they got assigned any shift this week
-        const hasShift = proposedUpdates.some(u => u.employeeId === employee.id && u.shiftTypeId !== null);
-        if (hasShift) {
-          autoResolvedCount++;
-        }
-      } else {
-        skippedCount++;
-      }
-    }
-
     const summary = {
       rotatedCount: 0,
-      autoResolvedCount,
+      autoResolvedCount: 0,
       flaggedCount: flaggedEmployees.size,
-      skippedCount,
+      skippedCount: employees.length,
       flags
     };
 
@@ -424,12 +286,13 @@ export async function createScheduleWeek(
 
 export async function saveScheduleEntries(
   weekId: string,
-  updates: Array<{ employeeId: string; dayOfWeek: DayOfWeek; shiftTypeId: string | null }>
+  updates: Array<{ employeeId: string; dayOfWeek: DayOfWeek; shiftTypeId: string | null }>,
+  overrideRules: boolean = false
 ): Promise<{ success: boolean; errors: string[]; warnings: string[] }> {
   // Run validations
   const validationResult = await validateSchedule(weekId, updates);
   
-  if (!validationResult.success) {
+  if (!overrideRules && !validationResult.success) {
     return {
       success: false,
       errors: validationResult.errors,

@@ -49,27 +49,52 @@ async function main() {
     }
   });
 
-  const shiftTypesData = [
+  const nonCompositeData = [
     { name: 'DAY SHIFT A', startTime: '6:00 AM', endTime: '3:00 PM', colorHex: '#22C55E', sortOrder: 1, isNightShift: false, daysOfWeek: ['MON', 'THU', 'FRI', 'SAT', 'SUN'] as DayOfWeek[] },
     { name: 'DAY SHIFT B', startTime: '6:00 AM', endTime: '3:00 PM', colorHex: '#22C55E', sortOrder: 2, isNightShift: false, daysOfWeek: ['TUE', 'WED', 'THU', 'FRI', 'SAT'] as DayOfWeek[] },
-    { name: 'MORNING SHIFT', startTime: '8:00 AM', endTime: '5:00 PM', colorHex: '#94A3B8', sortOrder: 3, isNightShift: false, daysOfWeek: ['MON', 'TUE', 'WED', 'THU', 'FRI'] as DayOfWeek[] },
+    { name: 'MORNING SHIFT', startTime: '8:00 AM', endTime: '5:00 PM', colorHex: '#FFFACD', sortOrder: 3, isNightShift: false, daysOfWeek: ['MON', 'TUE', 'WED', 'THU', 'FRI'] as DayOfWeek[] },
     { name: 'MID SHIFT', startTime: '2:00 PM', endTime: '11:00 PM', colorHex: '#F97316', sortOrder: 4, isNightShift: false, daysOfWeek: ['MON', 'TUE', 'WED', 'THU', 'FRI'] as DayOfWeek[] },
     { name: 'NIGHT SHIFT', startTime: '8:30 PM', endTime: '5:30 AM', colorHex: '#A855F7', sortOrder: 5, isNightShift: true, daysOfWeek: ['MON', 'TUE', 'WED', 'THU', 'FRI'] as DayOfWeek[] },
     { name: 'MIDNIGHT SHIFT', startTime: '10:00 PM', endTime: '7:00 AM', colorHex: '#3B82F6', sortOrder: 6, isNightShift: true, daysOfWeek: ['MON', 'TUE', 'WED', 'THU', 'FRI'] as DayOfWeek[] },
     { name: 'LEAVE', startTime: null, endTime: null, colorHex: '#D8B4FE', sortOrder: 7, isNightShift: false, daysOfWeek: ['MON', 'TUE', 'WED', 'THU', 'FRI'] as DayOfWeek[] },
-    { name: 'ADJUST SHIFT', startTime: null, endTime: null, colorHex: '#EF4444', sortOrder: 8, isNightShift: false, daysOfWeek: [] as DayOfWeek[] },
   ];
 
   const shiftTypes = [];
-  for (const shift of shiftTypesData) {
+  for (const shift of nonCompositeData) {
     const created = await prisma.shiftType.upsert({
       where: { name: shift.name },
-      update: shift,
-      create: shift,
+      update: { ...shift, isComposite: false, compositeShiftIds: [], daysMapping: [] },
+      create: { ...shift, isComposite: false, compositeShiftIds: [], daysMapping: [] },
     });
     shiftTypes.push(created);
     console.log(`- Seeded shift: ${created.name}`);
   }
+
+  // Find standard shifts to link
+  const dayA = shiftTypes.find((s) => s.name === 'DAY SHIFT A')!;
+  const mid = shiftTypes.find((s) => s.name === 'MID SHIFT')!;
+  const midnight = shiftTypes.find((s) => s.name === 'MIDNIGHT SHIFT')!;
+
+  const adjustShiftData = {
+    name: 'ADJUST SHIFT',
+    startTime: null,
+    endTime: null,
+    colorHex: '#EF4444',
+    sortOrder: 8,
+    isNightShift: false,
+    daysOfWeek: ['MON', 'TUE', 'WED', 'THU', 'FRI'] as DayOfWeek[], // MON-FRI active work days
+    isComposite: true,
+    compositeShiftIds: [dayA.id, mid.id, midnight.id],
+    daysMapping: [dayA.id, dayA.id, mid.id, midnight.id, 'OFF', 'OFF', 'OFF'], // sample weekly adjust template schedule
+  };
+
+  const adjustShift = await prisma.shiftType.upsert({
+    where: { name: adjustShiftData.name },
+    update: adjustShiftData,
+    create: adjustShiftData,
+  });
+  shiftTypes.push(adjustShift);
+  console.log(`- Seeded composite shift: ${adjustShift.name}`);
 
   console.log('Seeding employees...');
 

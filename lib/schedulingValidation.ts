@@ -407,6 +407,9 @@ export async function validateShiftCoverage(proposedShift?: {
         sortOrder: 9999,
         isNightShift: false,
         daysOfWeek: ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'],
+        isComposite: false,
+        compositeShiftIds: [],
+        daysMapping: [],
       });
     }
   }
