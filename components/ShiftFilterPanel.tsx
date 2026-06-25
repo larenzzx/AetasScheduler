@@ -67,33 +67,61 @@ export default function ShiftFilterPanel() {
           Day
         </button>
 
+        {/* Combined Adjust option */}
+        <button
+          onClick={() => handleToggleFilter('ADJUST SHIFT')}
+          className={cn(
+            "px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all duration-150 border flex items-center gap-1.5",
+            activeShiftFilter === 'ADJUST SHIFT'
+              ? "text-white border-transparent shadow-md"
+              : "bg-slate-100 text-slate-300 border-slate-200 hover:bg-slate-200 hover:text-white"
+          )}
+          style={
+            activeShiftFilter === 'ADJUST SHIFT'
+              ? { backgroundColor: '#EF4444', boxShadow: '0 2px 8px rgba(239, 68, 68, 0.2)' }
+              : undefined
+          }
+        >
+          <span 
+            className="h-1.5 w-1.5 rounded-full" 
+            style={{ backgroundColor: activeShiftFilter === 'ADJUST SHIFT' ? '#fff' : '#EF4444' }} 
+          />
+          Adjust
+        </button>
+
         {/* Dynamic Database Shifts */}
-        {shiftTypes.map((shift) => {
-          const isActive = activeShiftFilter === shift.name;
-          return (
-            <button
-              key={shift.id}
-              onClick={() => handleToggleFilter(shift.name)}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all duration-150 border flex items-center gap-1.5",
-                isActive
-                  ? "text-white border-transparent shadow-md"
-                  : "bg-slate-100 text-slate-300 border-slate-200 hover:bg-slate-200 hover:text-white"
-              )}
-              style={
-                isActive
-                  ? { backgroundColor: shift.colorHex, boxShadow: `0 2px 8px ${shift.colorHex}33` }
-                  : undefined
-              }
-            >
-              <span 
-                className="h-1.5 w-1.5 rounded-full" 
-                style={{ backgroundColor: isActive ? '#fff' : shift.colorHex }} 
-              />
-              {shift.name.replace(' SHIFT', '')}
-            </button>
-          );
-        })}
+        {shiftTypes
+          .filter(
+            (shift) =>
+              !shift.name.toUpperCase().startsWith('DAY SHIFT') &&
+              !shift.name.toUpperCase().includes('ADJUST')
+          )
+          .map((shift) => {
+            const isActive = activeShiftFilter === shift.name;
+            return (
+              <button
+                key={shift.id}
+                onClick={() => handleToggleFilter(shift.name)}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all duration-150 border flex items-center gap-1.5",
+                  isActive
+                    ? "text-white border-transparent shadow-md"
+                    : "bg-slate-100 text-slate-300 border-slate-200 hover:bg-slate-200 hover:text-white"
+                )}
+                style={
+                  isActive
+                    ? { backgroundColor: shift.colorHex, boxShadow: `0 2px 8px ${shift.colorHex}33` }
+                    : undefined
+                }
+              >
+                <span 
+                  className="h-1.5 w-1.5 rounded-full" 
+                  style={{ backgroundColor: isActive ? '#fff' : shift.colorHex }} 
+                />
+                {shift.name.replace(' SHIFT', '')}
+              </button>
+            );
+          })}
 
         {/* Day-Off Option */}
         <button

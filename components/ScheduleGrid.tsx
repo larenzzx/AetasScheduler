@@ -211,7 +211,8 @@ export default function ScheduleGrid({ team }: ScheduleGridProps) {
 
   const rows = activeShiftFilter
     ? baseRows.filter((row) => {
-        return Object.entries(row.entries).some(([dayOfWeek, entry]) => {
+        // 1. Check weekly schedule entries
+        const hasMatchingEntry = Object.entries(row.entries).some(([dayOfWeek, entry]) => {
           const key = `${row.employee.id}_${dayOfWeek}`;
           const shiftTypeId = key in unsavedChanges ? unsavedChanges[key] : entry.shiftTypeId;
           if (activeShiftFilter === 'DAY-OFF') {
@@ -219,12 +220,38 @@ export default function ScheduleGrid({ team }: ScheduleGridProps) {
           } else {
             const shift = shiftTypes.find((s) => s.id === shiftTypeId);
             if (!shift) return false;
+            const uppercaseName = shift.name.toUpperCase();
             if (activeShiftFilter === 'DAY SHIFT') {
-              return shift.name.startsWith('DAY SHIFT');
+              return uppercaseName.startsWith('DAY SHIFT');
+            }
+            if (activeShiftFilter === 'ADJUST SHIFT') {
+              return uppercaseName.includes('ADJUST');
             }
             return shift.name === activeShiftFilter;
           }
         });
+
+        if (hasMatchingEntry) return true;
+
+        // 2. Check employee's base shift type
+        const baseShiftTypeId = row.employee.currentShiftTypeId;
+        if (activeShiftFilter === 'DAY-OFF') {
+          return baseShiftTypeId === null;
+        } else if (baseShiftTypeId) {
+          const baseShift = shiftTypes.find((s) => s.id === baseShiftTypeId);
+          if (baseShift) {
+            const uppercaseBaseName = baseShift.name.toUpperCase();
+            if (activeShiftFilter === 'DAY SHIFT') {
+              return uppercaseBaseName.startsWith('DAY SHIFT');
+            }
+            if (activeShiftFilter === 'ADJUST SHIFT') {
+              return uppercaseBaseName.includes('ADJUST');
+            }
+            return baseShift.name === activeShiftFilter;
+          }
+        }
+
+        return false;
       })
     : baseRows;
 
@@ -614,12 +641,15 @@ export default function ScheduleGrid({ team }: ScheduleGridProps) {
                   {/* Days Columns */}
                   {DAYS.map((day) => {
                     const { shift, isDayOff, hasUnsavedChange } = getCellState(row.employee.id, day);
+                    const uppercaseName = shift?.name.toUpperCase() || '';
                     const matchesFilter = !activeShiftFilter ||
                       (activeShiftFilter === 'DAY-OFF' && isDayOff) ||
                       (shift && (
                         activeShiftFilter === 'DAY SHIFT' 
-                          ? shift.name.startsWith('DAY SHIFT') 
-                          : shift.name === activeShiftFilter
+                          ? uppercaseName.startsWith('DAY SHIFT') 
+                          : activeShiftFilter === 'ADJUST SHIFT'
+                            ? uppercaseName.includes('ADJUST')
+                            : shift.name === activeShiftFilter
                       ));
 
                     const currentCell = { employeeId: row.employee.id, dayOfWeek: day };

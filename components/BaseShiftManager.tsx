@@ -46,8 +46,12 @@ export default function BaseShiftManager() {
     }
     const currentShift = shiftTypes.find((st) => st.id === emp.currentShiftTypeId);
     if (!currentShift) return false;
+    const uppercaseName = currentShift.name.toUpperCase();
     if (activeShiftFilter === 'DAY SHIFT') {
-      return currentShift.name.startsWith('DAY SHIFT');
+      return uppercaseName.startsWith('DAY SHIFT');
+    }
+    if (activeShiftFilter === 'ADJUST SHIFT') {
+      return uppercaseName.includes('ADJUST');
     }
     return currentShift.name === activeShiftFilter;
   });
