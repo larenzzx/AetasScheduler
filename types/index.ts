@@ -1,5 +1,11 @@
 import type { Employee, ShiftType, ScheduleWeek, ScheduleEntry } from '@prisma/client';
 
+export type EmployeeWithRelations = Employee & {
+  currentShiftType?: ShiftType | null;
+  mentor?: Employee | null;
+  mentees?: Employee[];
+};
+
 export type { Employee, ShiftType, ScheduleWeek, ScheduleEntry };
 
 export const Team = {

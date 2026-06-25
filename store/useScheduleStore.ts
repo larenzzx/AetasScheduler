@@ -11,7 +11,7 @@ interface UserProfile {
 
 interface ScheduleState {
   currentWeekDate: string; // YYYY-MM-DD (always a Monday)
-  activeTab: 'ALL' | 'ALABANG' | 'ZAMBOANGA';
+  activeTab: 'ALL' | 'ALABANG' | 'ZAMBOANGA' | 'BASE_SHIFTS';
   
   // Data for both teams
   alabangWeek: ScheduleWeek | null;
@@ -40,11 +40,11 @@ interface ScheduleState {
   
   // Actions
   setWeekDate: (dateStr: string) => void;
-  setActiveTab: (tab: 'ALL' | 'ALABANG' | 'ZAMBOANGA') => void;
+  setActiveTab: (tab: 'ALL' | 'ALABANG' | 'ZAMBOANGA' | 'BASE_SHIFTS') => void;
   fetchSchedule: () => Promise<void>;
   updateCell: (employeeId: string, dayOfWeek: DayOfWeek, shiftTypeId: string | null) => void;
   discardChanges: () => void;
-  saveChanges: () => Promise<{ success: boolean; errors: string[]; warnings: string[] } | undefined>;
+  saveChanges: (overrideRules?: boolean) => Promise<{ success: boolean; errors: string[]; warnings: string[] } | undefined>;
   hasChanges: () => boolean;
   deleteSchedule: (team: Team) => Promise<void>;
 }
@@ -58,7 +58,7 @@ const getInitialMonday = () => {
 
 export const useScheduleStore = create<ScheduleState>((set, get) => ({
   currentWeekDate: getInitialMonday(),
-  activeTab: 'ALABANG',
+  activeTab: 'ALL',
   companyName: typeof window !== 'undefined' ? localStorage.getItem('companyName') || 'AETAS GLOBAL INNOVATION INC' : 'AETAS GLOBAL INNOVATION INC',
   setCompanyName: (name) => {
     if (typeof window !== 'undefined') {
@@ -146,7 +146,7 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
     set({ unsavedChanges: {} });
   },
 
-  saveChanges: async () => {
+  saveChanges: async (overrideRules: boolean = false) => {
     const { alabangWeek, zamboangaWeek, alabangRows, zamboangaRows, unsavedChanges, fetchSchedule } = get();
     if (Object.keys(unsavedChanges).length === 0) return { success: true, errors: [], warnings: [] };
     
@@ -179,11 +179,11 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
       const savePromises = [];
       
       if (alabangUpdates.length > 0 && alabangWeek) {
-        savePromises.push(saveScheduleEntries(alabangWeek.id, alabangUpdates));
+        savePromises.push(saveScheduleEntries(alabangWeek.id, alabangUpdates, overrideRules));
       }
       
       if (zamboangaUpdates.length > 0 && zamboangaWeek) {
-        savePromises.push(saveScheduleEntries(zamboangaWeek.id, zamboangaUpdates));
+        savePromises.push(saveScheduleEntries(zamboangaWeek.id, zamboangaUpdates, overrideRules));
       }
 
       const results = await Promise.all(savePromises);

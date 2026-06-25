@@ -5,6 +5,7 @@ import { renderToBuffer, Document, Page, Text, View, StyleSheet, Image as PdfIma
 import { formatWeekRange, sortScheduleRows } from '@/lib/utils';
 import { Team, DayOfWeek, Employee, ShiftType } from '@prisma/client';
 import path from 'path';
+import fs from 'fs';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,9 +55,12 @@ const styles = StyleSheet.create({
     height: 32,
   },
   logoImage: {
-    width: 16,
-    height: 16,
+    width: 24,
+    height: 24,
     objectFit: 'contain',
+    backgroundColor: '#062E56', // Prussian Blue background to contrast with white logo
+    padding: 3,
+    borderRadius: 4,
   },
   title: {
     fontSize: 12,
@@ -227,10 +231,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   dayCellSubtext: {
-    fontSize: 5,
+    fontSize: 5.8,
     textAlign: 'center',
     marginTop: 0.5,
-    opacity: 0.85,
   },
   dayOffText: {
     color: '#ef4444',
@@ -305,6 +308,35 @@ const SchedulePDFDocument = ({
   logoPath,
   companyName,
 }: PDFDocumentProps) => {
+  // Group shift types for legend display to avoid duplicate day/adjust shifts
+  const legendItems: Array<{ id: string; name: string; colorHex: string; timeRange: string }> = [];
+  const seenLegendNames = new Set<string>();
+
+  shiftTypes.forEach((shift) => {
+    let mappedName = shift.name;
+    const uppercaseName = shift.name.toUpperCase();
+    if (uppercaseName.startsWith('DAY SHIFT')) {
+      mappedName = 'DAY SHIFT';
+    } else if (uppercaseName.includes('ADJUST')) {
+      mappedName = 'ADJUST SHIFT';
+    }
+
+    if (!seenLegendNames.has(mappedName)) {
+      seenLegendNames.add(mappedName);
+      
+      const timeRange = shift.startTime && shift.endTime
+        ? ` (${shift.startTime} – ${shift.endTime})`
+        : '';
+
+      legendItems.push({
+        id: shift.id,
+        name: mappedName,
+        colorHex: shift.colorHex,
+        timeRange,
+      });
+    }
+  });
+
   const renderTable = (teamName: string, rows: PDFRow[]) => {
     return (
       <View style={styles.tableContainer}>
@@ -337,12 +369,31 @@ const SchedulePDFDocument = ({
             </View>
           ) : (
             rows.map((row) => {
+              const baseShift = row.employee.currentShiftTypeId
+                ? shiftTypes.find((s) => s.id === row.employee.currentShiftTypeId)
+                : null;
+              const isAdjustEmployee = baseShift && baseShift.name.toUpperCase().includes('ADJUST');
+              const adjustColor = baseShift?.colorHex || '#EF4444';
+
               return (
                 <View key={row.employee.id} style={styles.tr}>
                   {/* Employee Info */}
-                  <View style={styles.employeeColTd}>
-                    <Text style={styles.employeeName}>{row.employee.name}</Text>
-                    <Text style={styles.employeeTeam}>{row.employee.team}</Text>
+                  <View style={[
+                    styles.employeeColTd,
+                    isAdjustEmployee ? { backgroundColor: adjustColor } : {}
+                  ]}>
+                    <Text style={[
+                      styles.employeeName,
+                      { color: isAdjustEmployee ? '#FFFFFF' : '#1e293b' }
+                    ]}>
+                      {row.employee.name}
+                    </Text>
+                    <Text style={[
+                      styles.employeeTeam,
+                      { color: isAdjustEmployee ? '#FFFFFF' : '#64748b', opacity: isAdjustEmployee ? 0.9 : 1 }
+                    ]}>
+                      {row.employee.employmentType.replace(/_/g, ' ')}
+                    </Text>
                   </View>
                   {/* ID */}
                   <View style={styles.idColTd}>
@@ -382,6 +433,7 @@ const SchedulePDFDocument = ({
                                   style={[
                                     styles.dayCellSubtext,
                                     getPdfContrastStyle(shift.colorHex),
+                                    { fontFamily: 'Helvetica' },
                                   ]}
                                 >
                                   {shift.startTime}–{shift.endTime}
@@ -440,16 +492,14 @@ const SchedulePDFDocument = ({
         <View style={styles.legendSection}>
           <Text style={styles.legendTitle}>SHIFT LEGEND</Text>
           <View style={styles.legendContainer}>
-            {shiftTypes.map((shift) => (
-              <View key={shift.id} style={styles.legendItem}>
+            {legendItems.map((item) => (
+              <View key={item.id} style={styles.legendItem}>
                 <View
-                  style={[styles.legendColorBox, { backgroundColor: shift.colorHex }]}
+                  style={[styles.legendColorBox, { backgroundColor: item.colorHex }]}
                 />
                 <Text style={styles.legendText}>
-                  {shift.name}
-                  {shift.startTime && shift.endTime
-                    ? ` (${shift.startTime} – ${shift.endTime})`
-                    : ''}
+                  {item.name}
+                  {item.timeRange}
                 </Text>
               </View>
             ))}
@@ -481,6 +531,15 @@ export async function GET(request: NextRequest) {
     const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
     const monthLabel = monthFormatter.format(weekStart).toUpperCase();
     const logoPath = path.join(process.cwd(), 'public', 'ATS_logo.PNG');
+    let logoDataUrl = '';
+    try {
+      if (fs.existsSync(logoPath)) {
+        const logoBuffer = fs.readFileSync(logoPath);
+        logoDataUrl = `data:image/png;base64,${logoBuffer.toString('base64')}`;
+      }
+    } catch (err) {
+      console.error('Error reading logo file:', err);
+    }
     const companyName = searchParams.get('companyName') || 'AETAS GLOBAL INNOVATION INC';
 
     // 1. Fetch shift types
@@ -567,7 +626,7 @@ export async function GET(request: NextRequest) {
         zamboangaRows={zamboangaRows}
         shiftTypes={shiftTypes}
         weekHeaders={weekHeaders}
-        logoPath={logoPath}
+        logoPath={logoDataUrl || logoPath}
         companyName={companyName}
       />
     );

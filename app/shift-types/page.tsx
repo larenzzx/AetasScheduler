@@ -9,7 +9,7 @@ import {
   updateShiftSortOrders,
   getShiftCoverageWarnings
 } from '@/app/actions/shift-type';
-import { ShiftType } from '@/types';
+import { ShiftType, DayOfWeek } from '@/types';
 import { Button } from '@/components/ui/button';
 import { 
   Dialog, 
@@ -50,6 +50,8 @@ const PRESET_COLORS = [
   { name: 'Yellow', value: '#EAB308' },
 ];
 
+const DAYS_OF_WEEK: DayOfWeek[] = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+
 export default function ShiftTypesPage() {
   const [shiftTypes, setShiftTypes] = useState<ShiftType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,6 +67,12 @@ export default function ShiftTypesPage() {
   const [newStartTime, setNewStartTime] = useState('8:00 AM');
   const [newEndTime, setNewEndTime] = useState('5:00 PM');
   const [newColorHex, setNewColorHex] = useState('#94A3B8');
+  const [newDaysOfWeek, setNewDaysOfWeek] = useState<DayOfWeek[]>(['MON', 'TUE', 'WED', 'THU', 'FRI']);
+
+  // Composite additions for Add form
+  const [newIsComposite, setNewIsComposite] = useState(false);
+  const [newCompositeShiftIds, setNewCompositeShiftIds] = useState<string[]>([]);
+  const [newDaysMapping, setNewDaysMapping] = useState<string[]>(['OFF', 'OFF', 'OFF', 'OFF', 'OFF', 'OFF', 'OFF']);
 
   // Edit Shift states
   const [editOpen, setEditOpen] = useState(false);
@@ -76,6 +84,100 @@ export default function ShiftTypesPage() {
   const [editStartTime, setEditStartTime] = useState('');
   const [editEndTime, setEditEndTime] = useState('');
   const [editColorHex, setEditColorHex] = useState('');
+  const [editDaysOfWeek, setEditDaysOfWeek] = useState<DayOfWeek[]>([]);
+
+  // Composite additions for Edit form
+  const [editIsComposite, setEditIsComposite] = useState(false);
+  const [editCompositeShiftIds, setEditCompositeShiftIds] = useState<string[]>([]);
+  const [editDaysMapping, setEditDaysMapping] = useState<string[]>(['OFF', 'OFF', 'OFF', 'OFF', 'OFF', 'OFF', 'OFF']);
+
+  const getLimitForName = (name: string) => {
+    const uppercaseName = name.toUpperCase();
+    if (uppercaseName.includes('ADJUST')) return 3;
+    if (uppercaseName.includes('MIX')) return 2;
+    return 3;
+  };
+
+  const toggleChildShift = (id: string, isEdit: boolean) => {
+    const name = isEdit ? editName : newName;
+    const limit = getLimitForName(name);
+
+    if (isEdit) {
+      setEditCompositeShiftIds(prev => {
+        const isRemoving = prev.includes(id);
+        if (!isRemoving && prev.length >= limit) {
+          toast.warning(`Maximum of ${limit} child shifts allowed for this composite shift.`);
+          return prev;
+        }
+        const next = isRemoving ? prev.filter(x => x !== id) : [...prev, id];
+        if (isRemoving) {
+          setEditDaysMapping(curr => curr.map(val => val === id ? 'OFF' : val));
+        }
+        return next;
+      });
+    } else {
+      setNewCompositeShiftIds(prev => {
+        const isRemoving = prev.includes(id);
+        if (!isRemoving && prev.length >= limit) {
+          toast.warning(`Maximum of ${limit} child shifts allowed for this composite shift.`);
+          return prev;
+        }
+        const next = isRemoving ? prev.filter(x => x !== id) : [...prev, id];
+        if (isRemoving) {
+          setNewDaysMapping(curr => curr.map(val => val === id ? 'OFF' : val));
+        }
+        return next;
+      });
+    }
+  };
+
+  const handleDayMappingChange = (dayIdx: number, val: string, isEdit: boolean) => {
+    if (isEdit) {
+      setEditDaysMapping(prev => {
+        const next = [...prev];
+        next[dayIdx] = val;
+        return next;
+      });
+    } else {
+      setNewDaysMapping(prev => {
+        const next = [...prev];
+        next[dayIdx] = val;
+        return next;
+      });
+    }
+  };
+
+  const handleIsCompositeChange = (checked: boolean, isEdit: boolean) => {
+    if (isEdit) {
+      setEditIsComposite(checked);
+      if (checked) {
+        setEditHasHours(false);
+      }
+    } else {
+      setNewIsComposite(checked);
+      if (checked) {
+        setHasHours(false);
+      }
+    }
+  };
+
+  const getShiftNameById = (id: string) => {
+    if (id === 'OFF' || id === 'NONE') return 'OFF';
+    const found = shiftTypes.find(s => s.id === id);
+    return found ? found.name : 'OFF';
+  };
+
+  const toggleDay = (day: DayOfWeek, isEdit: boolean) => {
+    if (isEdit) {
+      setEditDaysOfWeek(prev => 
+        prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+      );
+    } else {
+      setNewDaysOfWeek(prev => 
+        prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+      );
+    }
+  };
 
   // Delete confirmation modal states
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -111,18 +213,44 @@ export default function ShiftTypesPage() {
       return;
     }
 
-    if (hasHours && (!newStartTime.trim() || !newEndTime.trim())) {
-      setAddError('Start Time and End Time are required for shifts with fixed hours.');
-      return;
+    if (newIsComposite) {
+      if (newCompositeShiftIds.length === 0) {
+        setAddError('At least one child shift must be selected for composite shifts.');
+        return;
+      }
+      const hasWorkdays = newDaysMapping.some(val => val !== 'OFF' && val !== 'NONE');
+      if (!hasWorkdays) {
+        setAddError('At least one day in the weekly template must be assigned a shift.');
+        return;
+      }
+    } else {
+      if (hasHours && (!newStartTime.trim() || !newEndTime.trim())) {
+        setAddError('Start Time and End Time are required for shifts with fixed hours.');
+        return;
+      }
     }
 
     setAddLoading(true);
     try {
+      const computedDaysOfWeek: DayOfWeek[] = [];
+      if (newIsComposite) {
+        DAYS_OF_WEEK.forEach((day, idx) => {
+          const mappedVal = newDaysMapping[idx];
+          if (mappedVal && mappedVal !== 'OFF' && mappedVal !== 'NONE') {
+            computedDaysOfWeek.push(day);
+          }
+        });
+      }
+
       const response = await createShiftType({
         name: newName.trim(),
         startTime: hasHours ? newStartTime.trim() : null,
         endTime: hasHours ? newEndTime.trim() : null,
         colorHex: newColorHex,
+        daysOfWeek: newIsComposite ? computedDaysOfWeek : newDaysOfWeek,
+        isComposite: newIsComposite,
+        compositeShiftIds: newIsComposite ? newCompositeShiftIds : [],
+        daysMapping: newIsComposite ? newDaysMapping : [],
       });
 
       if (response.success) {
@@ -137,6 +265,10 @@ export default function ShiftTypesPage() {
         setNewStartTime('8:00 AM');
         setNewEndTime('5:00 PM');
         setNewColorHex('#94A3B8');
+        setNewDaysOfWeek(['MON', 'TUE', 'WED', 'THU', 'FRI']);
+        setNewIsComposite(false);
+        setNewCompositeShiftIds([]);
+        setNewDaysMapping(['OFF', 'OFF', 'OFF', 'OFF', 'OFF', 'OFF', 'OFF']);
         // Reload list
         loadShifts();
       } else {
@@ -158,6 +290,17 @@ export default function ShiftTypesPage() {
     setEditStartTime(shift.startTime || '8:00 AM');
     setEditEndTime(shift.endTime || '5:00 PM');
     setEditColorHex(shift.colorHex);
+    setEditDaysOfWeek(shift.daysOfWeek || []);
+    
+    // Populate composite values
+    setEditIsComposite(shift.isComposite || false);
+    setEditCompositeShiftIds(shift.compositeShiftIds || []);
+    setEditDaysMapping(
+      shift.daysMapping && shift.daysMapping.length === 7 
+        ? shift.daysMapping 
+        : ['OFF', 'OFF', 'OFF', 'OFF', 'OFF', 'OFF', 'OFF']
+    );
+
     setEditError(null);
     setEditOpen(true);
   };
@@ -173,18 +316,44 @@ export default function ShiftTypesPage() {
       return;
     }
 
-    if (editHasHours && (!editStartTime.trim() || !editEndTime.trim())) {
-      setEditError('Start Time and End Time are required for shifts with fixed hours.');
-      return;
+    if (editIsComposite) {
+      if (editCompositeShiftIds.length === 0) {
+        setEditError('At least one child shift must be selected for composite shifts.');
+        return;
+      }
+      const hasWorkdays = editDaysMapping.some(val => val !== 'OFF' && val !== 'NONE');
+      if (!hasWorkdays) {
+        setEditError('At least one day in the weekly template must be assigned a shift.');
+        return;
+      }
+    } else {
+      if (editHasHours && (!editStartTime.trim() || !editEndTime.trim())) {
+        setEditError('Start Time and End Time are required for shifts with fixed hours.');
+        return;
+      }
     }
 
     setEditLoading(true);
     try {
+      const computedDaysOfWeek: DayOfWeek[] = [];
+      if (editIsComposite) {
+        DAYS_OF_WEEK.forEach((day, idx) => {
+          const mappedVal = editDaysMapping[idx];
+          if (mappedVal && mappedVal !== 'OFF' && mappedVal !== 'NONE') {
+            computedDaysOfWeek.push(day);
+          }
+        });
+      }
+
       const response = await updateShiftType(editingId, {
         name: editName.trim(),
         startTime: editHasHours ? editStartTime.trim() : null,
         endTime: editHasHours ? editEndTime.trim() : null,
         colorHex: editColorHex,
+        daysOfWeek: editIsComposite ? computedDaysOfWeek : editDaysOfWeek,
+        isComposite: editIsComposite,
+        compositeShiftIds: editIsComposite ? editCompositeShiftIds : [],
+        daysMapping: editIsComposite ? editDaysMapping : [],
       });
 
       if (response.success) {
@@ -290,7 +459,7 @@ export default function ShiftTypesPage() {
               </Button>
             }
           />
-          <DialogContent className="sm:max-w-[425px] bg-white border-slate-200">
+          <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto bg-white border-slate-200">
             <form onSubmit={handleCreate}>
               <DialogHeader>
                 <DialogTitle className="text-slate-800 flex items-center gap-2">
@@ -326,52 +495,165 @@ export default function ShiftTypesPage() {
                   />
                 </div>
 
-                {/* Has Working Hours Checkbox */}
+                {/* Composite Shift Checkbox */}
                 <div className="flex items-center gap-2.5 pt-1">
                   <input
-                    id="hasHours"
+                    id="isComposite"
                     type="checkbox"
-                    checked={hasHours}
-                    onChange={(e) => setHasHours(e.target.checked)}
+                    checked={newIsComposite}
+                    onChange={(e) => handleIsCompositeChange(e.target.checked, false)}
                     className="h-4.5 w-4.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500/20"
                   />
-                  <label htmlFor="hasHours" className="text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer">
-                    This shift has fixed work hours
+                  <label htmlFor="isComposite" className="text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer">
+                    This is a composite/combination shift
                   </label>
                 </div>
 
-                {/* Start & End Times */}
-                {hasHours && (
-                  <div className="grid grid-cols-2 gap-3 animate-in fade-in-50 duration-200">
+                {newIsComposite ? (
+                  <div className="grid gap-4 animate-in fade-in-50 duration-200 bg-slate-50 p-3 rounded-lg border border-slate-150/70">
                     <div className="grid gap-2">
-                      <label htmlFor="startTime" className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                        Start Time
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                        Select Child Shifts
                       </label>
-                      <input
-                        id="startTime"
-                        type="text"
-                        required
-                        placeholder="e.g. 8:00 AM"
-                        value={newStartTime}
-                        onChange={(e) => setNewStartTime(e.target.value)}
-                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                      />
+                      <p className="text-xs text-slate-400">
+                        Select up to 3 shifts to combine (max 3 for Adjust, max 2 for Mixed).
+                      </p>
+                      <div className="flex flex-col gap-2 mt-1.5">
+                        {shiftTypes.filter(s => !s.isComposite).map((s) => {
+                          const isChecked = newCompositeShiftIds.includes(s.id);
+                          return (
+                            <label key={s.id} className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer hover:text-slate-900">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => toggleChildShift(s.id, false)}
+                                className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500/20"
+                              />
+                              <span className="h-2 w-2 rounded-full border border-black/5" style={{ backgroundColor: s.colorHex }} />
+                              <span>{s.name} {s.startTime && s.endTime ? `(${s.startTime} - ${s.endTime})` : ''}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
                     </div>
-                    <div className="grid gap-2">
-                      <label htmlFor="endTime" className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                        End Time
-                      </label>
-                      <input
-                        id="endTime"
-                        type="text"
-                        required
-                        placeholder="e.g. 5:00 PM"
-                        value={newEndTime}
-                        onChange={(e) => setNewEndTime(e.target.value)}
-                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                      />
-                    </div>
+
+                    {newCompositeShiftIds.length > 0 && (
+                      <div className="grid gap-2 border-t border-slate-200/60 pt-3">
+                        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                          Weekly Schedule Template
+                        </label>
+                        <p className="text-xs text-slate-400">
+                          Map each day of the week to one of the selected child shifts or OFF.
+                        </p>
+                        <div className="grid grid-cols-2 gap-2 mt-1.5">
+                          {DAYS_OF_WEEK.map((day, idx) => {
+                            const currentVal = newDaysMapping[idx] || 'OFF';
+                            return (
+                              <div key={day} className="flex flex-col gap-1">
+                                <span className="text-[10px] font-bold text-slate-400 font-mono uppercase">{day}</span>
+                                <select
+                                  value={currentVal}
+                                  onChange={(e) => handleDayMappingChange(idx, e.target.value, false)}
+                                  className="w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium"
+                                >
+                                  <option value="OFF">OFF (Day-off)</option>
+                                  {newCompositeShiftIds.map(cid => {
+                                    const child = shiftTypes.find(c => c.id === cid);
+                                    if (!child) return null;
+                                    return (
+                                      <option key={cid} value={cid}>
+                                        {child.name}
+                                      </option>
+                                    );
+                                  })}
+                                </select>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
+                ) : (
+                  <>
+                    {/* Has Working Hours Checkbox */}
+                    <div className="flex items-center gap-2.5 pt-1">
+                      <input
+                        id="hasHours"
+                        type="checkbox"
+                        checked={hasHours}
+                        onChange={(e) => setHasHours(e.target.checked)}
+                        className="h-4.5 w-4.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500/20"
+                      />
+                      <label htmlFor="hasHours" className="text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer">
+                        This shift has fixed work hours
+                      </label>
+                    </div>
+
+                    {/* Start & End Times */}
+                    {hasHours && (
+                      <div className="grid grid-cols-2 gap-3 animate-in fade-in-50 duration-200">
+                        <div className="grid gap-2">
+                          <label htmlFor="startTime" className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            Start Time
+                          </label>
+                          <input
+                            id="startTime"
+                            type="text"
+                            required
+                            placeholder="e.g. 8:00 AM"
+                            value={newStartTime}
+                            onChange={(e) => setNewStartTime(e.target.value)}
+                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <label htmlFor="endTime" className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            End Time
+                          </label>
+                          <input
+                            id="endTime"
+                            type="text"
+                            required
+                            placeholder="e.g. 5:00 PM"
+                            value={newEndTime}
+                            onChange={(e) => setNewEndTime(e.target.value)}
+                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Workdays Selector */}
+                    <div className="grid gap-2">
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                        Workdays / Rest-day Template
+                      </label>
+                      <p className="text-xs text-slate-400">
+                        Select the days of the week when this shift is active. Unselected days will automatically be flagged as day-offs.
+                      </p>
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {DAYS_OF_WEEK.map((day) => {
+                          const isSelected = newDaysOfWeek.includes(day);
+                          return (
+                            <button
+                              key={day}
+                              type="button"
+                              onClick={() => toggleDay(day, false)}
+                              className={cn(
+                                "px-3 py-1.5 text-xs font-bold rounded-lg border transition-all duration-150 hover:scale-105",
+                                isSelected
+                                  ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
+                                  : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                              )}
+                            >
+                              {day}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </>
                 )}
 
                 {/* Color Selection */}
@@ -516,6 +798,7 @@ export default function ShiftTypesPage() {
                   <th className="px-6 py-4 w-20 text-center"><Hash className="h-3.5 w-3.5 mx-auto text-slate-400" /></th>
                   <th className="px-6 py-4">Shift Name</th>
                   <th className="px-6 py-4">Working Hours</th>
+                  <th className="px-6 py-4">Workdays Template</th>
                   <th className="px-6 py-4">Display Theme</th>
                   <th className="px-6 py-4 text-center w-32">Ordering</th>
                   <th className="px-6 py-4 text-right">Actions</th>
@@ -543,11 +826,47 @@ export default function ShiftTypesPage() {
 
                       {/* Working Hours */}
                       <td className="px-6 py-4 font-medium text-slate-600">
-                        {shift.startTime && shift.endTime ? (
+                        {shift.isComposite ? (
+                          <div className="flex flex-col gap-1 text-[11px] bg-slate-50 p-2 rounded-lg border border-slate-100 max-w-[220px]">
+                            <span className="text-[10px] text-indigo-600 font-bold uppercase tracking-wider mb-0.5">Composite Schedule:</span>
+                            {DAYS_OF_WEEK.map((day, idx) => {
+                              const mappedId = shift.daysMapping?.[idx] || 'OFF';
+                              const shiftName = getShiftNameById(mappedId);
+                              const isOff = mappedId === 'OFF';
+                              return (
+                                <div key={day} className="flex justify-between items-center font-mono">
+                                  <span className="font-semibold text-slate-400">{day}:</span>
+                                  <span className={cn(
+                                    "font-bold text-[10px] px-1 rounded",
+                                    isOff ? "text-slate-400 bg-slate-100" : "text-emerald-700 bg-emerald-50"
+                                  )}>
+                                    {shiftName}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : shift.startTime && shift.endTime ? (
                           <span>{shift.startTime} – {shift.endTime}</span>
                         ) : (
                           <span className="text-slate-400 italic">No set working hours</span>
                         )}
+                      </td>
+
+                      {/* Workdays / Day-offs */}
+                      <td className="px-6 py-4">
+                        <div className="space-y-1 text-xs">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-slate-500 uppercase tracking-wider text-[9px]">Workdays:</span>
+                            <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-mono font-bold text-[10px]">{shift.daysOfWeek && shift.daysOfWeek.length > 0 ? shift.daysOfWeek.join(', ') : 'NONE'}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-slate-500 uppercase tracking-wider text-[9px]">Day-offs:</span>
+                            <span className="text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded font-mono font-bold text-[10px]">
+                              {DAYS_OF_WEEK.filter(d => !shift.daysOfWeek?.includes(d)).join(', ')}
+                            </span>
+                          </div>
+                        </div>
                       </td>
 
                       {/* Display Color Hex */}
@@ -623,7 +942,7 @@ export default function ShiftTypesPage() {
 
       {/* Edit Shift Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="sm:max-w-[425px] bg-white border-slate-200">
+        <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto bg-white border-slate-200">
           <form onSubmit={handleUpdate}>
             <DialogHeader>
               <DialogTitle className="text-slate-800 flex items-center gap-2">
@@ -659,52 +978,165 @@ export default function ShiftTypesPage() {
                 />
               </div>
 
-              {/* Has Working Hours Checkbox */}
+              {/* Composite Shift Checkbox */}
               <div className="flex items-center gap-2.5 pt-1">
                 <input
-                  id="editHasHours"
+                  id="editIsComposite"
                   type="checkbox"
-                  checked={editHasHours}
-                  onChange={(e) => setEditHasHours(e.target.checked)}
+                  checked={editIsComposite}
+                  onChange={(e) => handleIsCompositeChange(e.target.checked, true)}
                   className="h-4.5 w-4.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500/20"
                 />
-                <label htmlFor="editHasHours" className="text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer">
-                  This shift has fixed work hours
+                <label htmlFor="editIsComposite" className="text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer">
+                  This is a composite/combination shift
                 </label>
               </div>
 
-              {/* Start & End Times */}
-              {editHasHours && (
-                <div className="grid grid-cols-2 gap-3 animate-in fade-in-50 duration-200">
+              {editIsComposite ? (
+                <div className="grid gap-4 animate-in fade-in-50 duration-200 bg-slate-50 p-3 rounded-lg border border-slate-150/70">
                   <div className="grid gap-2">
-                    <label htmlFor="editStartTime" className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                      Start Time
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                      Select Child Shifts
                     </label>
-                    <input
-                      id="editStartTime"
-                      type="text"
-                      required
-                      placeholder="e.g. 8:00 AM"
-                      value={editStartTime}
-                      onChange={(e) => setEditStartTime(e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                    />
+                    <p className="text-xs text-slate-400">
+                      Select up to 3 shifts to combine (max 3 for Adjust, max 2 for Mixed).
+                    </p>
+                    <div className="flex flex-col gap-2 mt-1.5">
+                      {shiftTypes.filter(s => !s.isComposite && s.id !== editingId).map((s) => {
+                        const isChecked = editCompositeShiftIds.includes(s.id);
+                        return (
+                          <label key={s.id} className="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer hover:text-slate-900">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleChildShift(s.id, true)}
+                              className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500/20"
+                            />
+                            <span className="h-2 w-2 rounded-full border border-black/5" style={{ backgroundColor: s.colorHex }} />
+                            <span>{s.name} {s.startTime && s.endTime ? `(${s.startTime} - ${s.endTime})` : ''}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div className="grid gap-2">
-                    <label htmlFor="editEndTime" className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                      End Time
-                    </label>
-                    <input
-                      id="editEndTime"
-                      type="text"
-                      required
-                      placeholder="e.g. 5:00 PM"
-                      value={editEndTime}
-                      onChange={(e) => setEditEndTime(e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                    />
-                  </div>
+
+                  {editCompositeShiftIds.length > 0 && (
+                    <div className="grid gap-2 border-t border-slate-200/60 pt-3">
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                        Weekly Schedule Template
+                      </label>
+                      <p className="text-xs text-slate-400">
+                        Map each day of the week to one of the selected child shifts or OFF.
+                      </p>
+                      <div className="grid grid-cols-2 gap-2 mt-1.5">
+                        {DAYS_OF_WEEK.map((day, idx) => {
+                          const currentVal = editDaysMapping[idx] || 'OFF';
+                          return (
+                            <div key={day} className="flex flex-col gap-1">
+                              <span className="text-[10px] font-bold text-slate-400 font-mono uppercase">{day}</span>
+                              <select
+                                value={currentVal}
+                                onChange={(e) => handleDayMappingChange(idx, e.target.value, true)}
+                                className="w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 font-medium"
+                              >
+                                <option value="OFF">OFF (Day-off)</option>
+                                {editCompositeShiftIds.map(cid => {
+                                  const child = shiftTypes.find(c => c.id === cid);
+                                  if (!child) return null;
+                                  return (
+                                    <option key={cid} value={cid}>
+                                      {child.name}
+                                    </option>
+                                  );
+                                })}
+                              </select>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
+              ) : (
+                <>
+                  {/* Has Working Hours Checkbox */}
+                  <div className="flex items-center gap-2.5 pt-1">
+                    <input
+                      id="editHasHours"
+                      type="checkbox"
+                      checked={editHasHours}
+                      onChange={(e) => setEditHasHours(e.target.checked)}
+                      className="h-4.5 w-4.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500/20"
+                    />
+                    <label htmlFor="editHasHours" className="text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer">
+                      This shift has fixed work hours
+                    </label>
+                  </div>
+
+                  {/* Start & End Times */}
+                  {editHasHours && (
+                    <div className="grid grid-cols-2 gap-3 animate-in fade-in-50 duration-200">
+                      <div className="grid gap-2">
+                        <label htmlFor="editStartTime" className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                          Start Time
+                        </label>
+                        <input
+                          id="editStartTime"
+                          type="text"
+                          required
+                          placeholder="e.g. 8:00 AM"
+                          value={editStartTime}
+                          onChange={(e) => setEditStartTime(e.target.value)}
+                          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <label htmlFor="editEndTime" className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                          End Time
+                        </label>
+                        <input
+                          id="editEndTime"
+                          type="text"
+                          required
+                          placeholder="e.g. 5:00 PM"
+                          value={editEndTime}
+                          onChange={(e) => setEditEndTime(e.target.value)}
+                          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Workdays Selector */}
+                  <div className="grid gap-2">
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                      Workdays / Rest-day Template
+                    </label>
+                    <p className="text-xs text-slate-400">
+                      Select the days of the week when this shift is active. Unselected days will automatically be flagged as day-offs.
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {DAYS_OF_WEEK.map((day) => {
+                        const isSelected = editDaysOfWeek.includes(day);
+                        return (
+                          <button
+                            key={day}
+                            type="button"
+                            onClick={() => toggleDay(day, true)}
+                            className={cn(
+                              "px-3 py-1.5 text-xs font-bold rounded-lg border transition-all duration-150 hover:scale-105",
+                              isSelected
+                                ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
+                                : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                            )}
+                          >
+                            {day}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
               )}
 
               {/* Color Selection */}

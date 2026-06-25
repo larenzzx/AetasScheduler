@@ -63,7 +63,11 @@ export default function NewScheduleDialog() {
 
       const responses = await Promise.all(
         teamsToCreate.map(async (t) => {
-          const res = await createScheduleWeek(targetMondayStr, t, strategy);
+          const res = await createScheduleWeek(
+            targetMondayStr, 
+            t, 
+            strategy
+          );
           return { team: t, summary: res.summary };
         })
       );
@@ -111,30 +115,30 @@ export default function NewScheduleDialog() {
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger
         render={
-          <Button className="bg-emerald-600 hover:bg-emerald-700 text-white border-none shadow-md shadow-emerald-600/10 font-medium transition-all duration-200">
+          <Button className="bg-[#1023FD] hover:bg-[#11B4D4] text-white border-none shadow-md shadow-[#1023FD]/10 font-medium transition-all duration-200">
             <Plus className="mr-1.5 h-4 w-4" />
             New Schedule Week
           </Button>
         }
       />
-      <DialogContent className={cn("bg-white border-slate-200 transition-all duration-300", showSummary ? "sm:max-w-[500px]" : "sm:max-w-[425px]")}>
+      <DialogContent className={cn("bg-white border-slate-200 text-white transition-all duration-300 rounded-2xl shadow-2xl", showSummary ? "sm:max-w-[500px]" : "sm:max-w-[450px]")}>
         {showSummary ? (
           <>
             <DialogHeader>
-              <DialogTitle className="text-slate-800 flex items-center gap-2 font-bold tracking-tight">
-                <CalendarRange className="h-5 w-5 text-emerald-600 animate-bounce" />
+              <DialogTitle className="text-white flex items-center gap-2 font-bold tracking-tight">
+                <CalendarRange className="h-5 w-5 text-[#00EEF5] animate-bounce" />
                 Generation Summary
               </DialogTitle>
-              <DialogDescription className="text-slate-500">
+              <DialogDescription className="text-slate-400">
                 Roster generation and bi-weekly shift rotation results.
               </DialogDescription>
             </DialogHeader>
 
-            <div className="py-4 space-y-6 max-h-[60vh] overflow-y-auto pr-1">
+            <div className="py-4 space-y-6 max-h-[60vh] overflow-y-auto pr-1 scrollbar-thin">
               {summaries.map((s) => (
-                <div key={s.team} className="space-y-4 border-b border-slate-100 last:border-0 pb-4 last:pb-0">
+                <div key={s.team} className="space-y-4 border-b border-slate-200/10 last:border-0 pb-4 last:pb-0">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                       TEAM {s.team}
                     </h3>
                   </div>
@@ -160,7 +164,7 @@ export default function NewScheduleDialog() {
 
                   {s.flags.length > 0 ? (
                     <div className="space-y-2">
-                      <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                         <AlertTriangle className="h-4 w-4 text-red-500" />
                         Flagged for Manual Review ({s.flags.length})
                       </h4>
@@ -187,7 +191,7 @@ export default function NewScheduleDialog() {
                 onClick={() => {
                   setOpen(false);
                 }}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white border-none shadow-md shadow-emerald-600/10 font-semibold w-full"
+                className="bg-[#1023FD] hover:bg-[#11B4D4] text-white border-none shadow-md shadow-[#1023FD]/10 font-semibold w-full h-10 rounded-lg"
               >
                 Done
               </Button>
@@ -196,11 +200,11 @@ export default function NewScheduleDialog() {
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle className="text-slate-800 flex items-center gap-2">
-                <CalendarRange className="h-5 w-5 text-emerald-600" />
+              <DialogTitle className="text-white flex items-center gap-2">
+                <CalendarRange className="h-5 w-5 text-[#11B4D4]" />
                 Create Schedule Week
               </DialogTitle>
-              <DialogDescription className="text-slate-500">
+              <DialogDescription className="text-slate-400">
                 Generate a new schedule week. Weeks are automatically aligned to start on Monday.
               </DialogDescription>
             </DialogHeader>
@@ -208,7 +212,7 @@ export default function NewScheduleDialog() {
             <div className="grid gap-4 py-4">
               {/* Week Start Date */}
               <div className="grid gap-2">
-                <label htmlFor="date" className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <label htmlFor="date" className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
                   Select Date in Week
                 </label>
                 <input
@@ -216,20 +220,20 @@ export default function NewScheduleDialog() {
                   type="date"
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#00EEF5]"
                 />
               </div>
 
               {/* Team Selection */}
               <div className="grid gap-2">
-                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
                   Target Team
                 </label>
                 <Select 
                   value={teamSelection} 
-                  onValueChange={(val) => { if (val) setTeamSelection(val); }}
+                  onValueChange={(val) => { if (val) setTeamSelection(val as 'ALABANG' | 'ZAMBOANGA' | 'BOTH'); }}
                 >
-                  <SelectTrigger className="border-slate-200 text-slate-800">
+                  <SelectTrigger className="border-slate-200 text-white">
                     <SelectValue placeholder="Select Team" />
                   </SelectTrigger>
                   <SelectContent className="bg-white border-slate-200">
@@ -242,27 +246,27 @@ export default function NewScheduleDialog() {
 
               {/* Creation Strategy */}
               <div className="grid gap-2">
-                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
                   Initialization Options
                 </label>
                 <Select 
                   value={strategy} 
                   onValueChange={(val) => { if (val) setStrategy(val as 'blank' | 'copy' | 'generate'); }}
                 >
-                  <SelectTrigger className="border-slate-200 text-slate-800">
+                  <SelectTrigger className="border-slate-200 text-white">
                     <SelectValue placeholder="Select Options" />
                   </SelectTrigger>
                   <SelectContent className="bg-white border-slate-200">
                     <SelectItem value="generate" className="hover:bg-slate-50">
-                      <span className="font-medium">Auto-Generate (Base Shifts & Rotation)</span>
+                      <span className="font-medium text-white">Auto-Generate (Base Shifts & Rotation)</span>
                       <span className="block text-[10px] text-slate-400 -mt-0.5">Applies base shifts & rotation rules automatically</span>
                     </SelectItem>
                     <SelectItem value="copy" className="hover:bg-slate-50">
-                      <span className="font-medium">Copy from previous week</span>
+                      <span className="font-medium text-white">Copy from previous week</span>
                       <span className="block text-[10px] text-slate-400 -mt-0.5">Duplicates previous week&apos;s shifts exactly</span>
                     </SelectItem>
                     <SelectItem value="blank" className="hover:bg-slate-50">
-                      <span className="font-medium">Start blank</span>
+                      <span className="font-medium text-white">Start blank</span>
                       <span className="block text-[10px] text-slate-400 -mt-0.5">All cells initialized as DAY-OFF</span>
                     </SelectItem>
                   </SelectContent>
@@ -270,19 +274,19 @@ export default function NewScheduleDialog() {
               </div>
             </div>
 
-            <DialogFooter>
+            <DialogFooter className="border-t border-slate-200/10 pt-3 flex flex-row gap-2 w-full">
               <Button
                 variant="outline"
                 onClick={() => setOpen(false)}
                 disabled={loading}
-                className="border-slate-200 text-slate-600 hover:bg-slate-50"
+                className="flex-1 h-10 border-slate-700 bg-transparent text-slate-300 hover:bg-slate-800 hover:text-white"
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleCreate}
                 disabled={loading}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white border-none shadow-md shadow-emerald-600/10"
+                className="flex-1 h-10 bg-[#1023FD] hover:bg-[#11B4D4] text-white border-none shadow-md shadow-[#1023FD]/10 font-semibold"
               >
                 {loading ? (
                   <>

@@ -45,6 +45,28 @@ export default function ShiftFilterPanel() {
           All Shifts
         </button>
 
+        {/* Combined Day option */}
+        <button
+          onClick={() => handleToggleFilter('DAY SHIFT')}
+          className={cn(
+            "px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all duration-150 border flex items-center gap-1.5",
+            activeShiftFilter === 'DAY SHIFT'
+              ? "text-white border-transparent shadow-md"
+              : "bg-slate-100 text-slate-300 border-slate-200 hover:bg-slate-200 hover:text-white"
+          )}
+          style={
+            activeShiftFilter === 'DAY SHIFT'
+              ? { backgroundColor: '#22C55E', boxShadow: '0 2px 8px rgba(34, 197, 94, 0.2)' }
+              : undefined
+          }
+        >
+          <span 
+            className="h-1.5 w-1.5 rounded-full" 
+            style={{ backgroundColor: activeShiftFilter === 'DAY SHIFT' ? '#fff' : '#22C55E' }} 
+          />
+          Day
+        </button>
+
         {/* Dynamic Database Shifts */}
         {shiftTypes.map((shift) => {
           const isActive = activeShiftFilter === shift.name;
